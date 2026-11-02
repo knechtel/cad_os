@@ -25,7 +25,14 @@ class AppRepository(
     fun getDevicesByCustomerId(customerId: Long): Flow<List<Device>> =
         deviceDao.getDevicesByCustomerId(customerId)
 
-    suspend fun insertDevice(device: Device): Long = deviceDao.insertDevice(device)
+    suspend fun insertDevice(device: Device): Long {
+        val deviceToInsert = if (device.createdAt <= 0L) {
+            device.copy(createdAt = System.currentTimeMillis())
+        } else {
+            device
+        }
+        return deviceDao.insertDevice(deviceToInsert)
+    }
 
     suspend fun updateDevice(device: Device): Int = deviceDao.updateDevice(device)
 

@@ -18,6 +18,7 @@ data class DeviceFormState(
     val serialNumber: String = "",
     val description: String = "",
     val price: String = "",
+    val createdAt: Long = 0L,
     val modelError: String? = null,
     val brandError: String? = null,
     val serialError: String? = null,
@@ -50,6 +51,7 @@ class DeviceFormViewModel(
                     serialNumber = device.serialNumber,
                     description = device.description,
                     price = device.price.toString(),
+                    createdAt = device.createdAt,
                     isLoading = false
                 )
             } else {
@@ -130,6 +132,11 @@ class DeviceFormViewModel(
 
         viewModelScope.launch {
             _uiState.value = currentState.copy(isSaving = true)
+            val targetCreatedAt = if (currentState.id <= 0) {
+                System.currentTimeMillis()
+            } else {
+                if (currentState.createdAt > 0L) currentState.createdAt else System.currentTimeMillis()
+            }
             val device = Device(
                 id = currentState.id,
                 customerId = if (currentState.customerId > 0) currentState.customerId else customerId,
@@ -137,7 +144,8 @@ class DeviceFormViewModel(
                 brand = currentState.brand.trim(),
                 serialNumber = currentState.serialNumber.trim(),
                 description = currentState.description.trim(),
-                price = parsedPrice ?: 0.0
+                price = parsedPrice ?: 0.0,
+                createdAt = targetCreatedAt
             )
             if (device.id <= 0) {
                 repository.insertDevice(device)

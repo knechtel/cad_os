@@ -25,5 +25,6 @@ data class Device(
     val brand: String,
     val serialNumber: String,
     val description: String,
-    val price: Double
+    val price: Double,
+    val createdAt: Long = System.currentTimeMillis()
 )

@@ -43,11 +43,16 @@ class MainViewModel(
             list
         } else {
             val q = query.trim().lowercase(Locale.getDefault())
+            val digitsOnly = q.removePrefix("os").removePrefix("#").trim()
             list.filter { item ->
                 item.customer.name.lowercase(Locale.getDefault()).contains(q) ||
                         item.customer.phone.lowercase(Locale.getDefault()).contains(q) ||
                         item.customer.cpf.lowercase(Locale.getDefault()).contains(q) ||
-                        item.customer.address.lowercase(Locale.getDefault()).contains(q)
+                        item.customer.address.lowercase(Locale.getDefault()).contains(q) ||
+                        item.customer.id.toString() == q ||
+                        ("os #${item.customer.id}".contains(q)) ||
+                        ("os:${item.customer.id}".contains(q)) ||
+                        (digitsOnly.isNotEmpty() && item.customer.id.toString() == digitsOnly)
             }
         }
     }.stateIn(

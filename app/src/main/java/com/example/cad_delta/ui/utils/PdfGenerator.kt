@@ -144,7 +144,7 @@ object PdfGenerator {
             y += 20f
 
             // --- Section 1: Customer Details ---
-            canvas.drawText("1. Dados do Cliente", leftMargin, y, sectionTitlePaint)
+            canvas.drawText("1. Dados do Cliente - Nº da OS: #${customer.id}", leftMargin, y, sectionTitlePaint)
             y += 12f
 
             val cardTop = y
@@ -154,15 +154,18 @@ object PdfGenerator {
             canvas.drawRoundRect(cardRect, 6f, 6f, cardBorderPaint)
 
             var custY = cardTop + 20f
-            canvas.drawText("Nome:", leftMargin + 12f, custY, labelPaint)
-            canvas.drawText(truncateText(customer.name, valuePaint, 220f), leftMargin + 55f, custY, valuePaint)
+            canvas.drawText("Nº da OS:", leftMargin + 12f, custY, labelPaint)
+            canvas.drawText("OS #${customer.id}", leftMargin + 65f, custY, valuePaint)
 
-            canvas.drawText("Telefone:", leftMargin + 300f, custY, labelPaint)
-            canvas.drawText(customer.phone, leftMargin + 355f, custY, valuePaint)
+            canvas.drawText("Nome:", leftMargin + 180f, custY, labelPaint)
+            canvas.drawText(truncateText(customer.name, valuePaint, 240f), leftMargin + 220f, custY, valuePaint)
 
             custY += 18f
             canvas.drawText("CPF:", leftMargin + 12f, custY, labelPaint)
-            canvas.drawText(customer.cpf, leftMargin + 55f, custY, valuePaint)
+            canvas.drawText(customer.cpf, leftMargin + 45f, custY, valuePaint)
+
+            canvas.drawText("Telefone:", leftMargin + 180f, custY, labelPaint)
+            canvas.drawText(customer.phone, leftMargin + 235f, custY, valuePaint)
 
             if (customer.address.isNotBlank()) {
                 custY += 18f
@@ -180,13 +183,14 @@ object PdfGenerator {
                 val headerRect = RectF(leftMargin, topY, rightMargin, topY + 22f)
                 c.drawRect(headerRect, tableHeaderBgPaint)
                 val headerTextY = topY + 15f
-                c.drawText("Modelo", leftMargin + 8f, headerTextY, tableHeaderPaint)
-                c.drawText("Marca", leftMargin + 115f, headerTextY, tableHeaderPaint)
-                c.drawText("Nº Série", leftMargin + 195f, headerTextY, tableHeaderPaint)
-                c.drawText("Descrição", leftMargin + 290f, headerTextY, tableHeaderPaint)
+                c.drawText("Modelo", leftMargin + 6f, headerTextY, tableHeaderPaint)
+                c.drawText("Marca", leftMargin + 95f, headerTextY, tableHeaderPaint)
+                c.drawText("Nº Série", leftMargin + 160f, headerTextY, tableHeaderPaint)
+                c.drawText("Data Cadastro", leftMargin + 230f, headerTextY, tableHeaderPaint)
+                c.drawText("Descrição", leftMargin + 330f, headerTextY, tableHeaderPaint)
                 val priceHeader = "Preço (R$)"
                 val priceWidth = tableHeaderPaint.measureText(priceHeader)
-                c.drawText(priceHeader, rightMargin - 8f - priceWidth, headerTextY, tableHeaderPaint)
+                c.drawText(priceHeader, rightMargin - 6f - priceWidth, headerTextY, tableHeaderPaint)
             }
 
             drawTableHeader(canvas, y)
@@ -224,14 +228,18 @@ object PdfGenerator {
                     canvas.drawRect(rowRect, tableBorderPaint)
 
                     val cellTextY = y + 15f
-                    canvas.drawText(truncateText(device.model, tableCellPaint, 100f), leftMargin + 8f, cellTextY, tableCellPaint)
-                    canvas.drawText(truncateText(device.brand, tableCellPaint, 75f), leftMargin + 115f, cellTextY, tableCellPaint)
-                    canvas.drawText(truncateText(device.serialNumber, tableCellPaint, 90f), leftMargin + 195f, cellTextY, tableCellPaint)
-                    canvas.drawText(truncateText(device.description, tableCellPaint, 125f), leftMargin + 290f, cellTextY, tableCellPaint)
+                    canvas.drawText(truncateText(device.model, tableCellPaint, 85f), leftMargin + 6f, cellTextY, tableCellPaint)
+                    canvas.drawText(truncateText(device.brand, tableCellPaint, 60f), leftMargin + 95f, cellTextY, tableCellPaint)
+                    canvas.drawText(truncateText(device.serialNumber, tableCellPaint, 65f), leftMargin + 160f, cellTextY, tableCellPaint)
+
+                    val dateStr = if (device.createdAt > 0L) DateUtils.formatDate(device.createdAt) else "-"
+                    canvas.drawText(truncateText(dateStr, tableCellPaint, 95f), leftMargin + 230f, cellTextY, tableCellPaint)
+
+                    canvas.drawText(truncateText(device.description, tableCellPaint, 105f), leftMargin + 330f, cellTextY, tableCellPaint)
 
                     val formattedPrice = CurrencyUtils.formatBrl(device.price)
                     val priceW = tableCellPaint.measureText(formattedPrice)
-                    canvas.drawText(formattedPrice, rightMargin - 8f - priceW, cellTextY, tableCellPaint)
+                    canvas.drawText(formattedPrice, rightMargin - 6f - priceW, cellTextY, tableCellPaint)
 
                     y += rowHeight
                 }

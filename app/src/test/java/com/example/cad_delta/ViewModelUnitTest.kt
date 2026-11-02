@@ -50,4 +50,42 @@ class ViewModelUnitTest {
         assertEquals(2, customerWithDevices.devices.size)
         assertEquals(2300.0, customerWithDevices.devices.sumOf { it.price }, 0.001)
     }
+
+    @Test
+    fun testCustomerIdAsOsNumber() {
+        val customer = Customer(42L, "João Souza", "11988887777", "98765432100", "Av. Brasil, 500")
+        val osNumber = "OS #${customer.id}"
+        assertEquals("OS #42", osNumber)
+    }
+
+    @Test
+    fun testDateUtilsFormatting() {
+        val timestamp = 1700000000000L
+        val formatted = com.example.cad_delta.ui.utils.DateUtils.formatDate(timestamp)
+        assertNotNull(formatted)
+        org.junit.Assert.assertTrue(formatted.contains("/"))
+        org.junit.Assert.assertTrue(formatted.contains(":"))
+    }
+
+    @Test
+    fun testDeviceCreatedAtDefaultAndPreservation() {
+        val startTime = System.currentTimeMillis()
+        val device = Device(
+            id = 0L,
+            customerId = 1L,
+            model = "Pixel 7",
+            brand = "Google",
+            serialNumber = "SN123",
+            description = "Test",
+            price = 999.0
+        )
+        org.junit.Assert.assertTrue(device.createdAt >= startTime)
+
+        val fixedTimestamp = 1600000000000L
+        val oldDevice = device.copy(id = 1L, createdAt = fixedTimestamp)
+        assertEquals(fixedTimestamp, oldDevice.createdAt)
+
+        val updatedDevice = oldDevice.copy(model = "Pixel 7 Pro")
+        assertEquals(fixedTimestamp, updatedDevice.createdAt)
+    }
 }

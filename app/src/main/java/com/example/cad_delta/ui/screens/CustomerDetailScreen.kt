@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Edit
@@ -59,6 +60,7 @@ import com.example.cad_delta.CustomerWithDevices
 import com.example.cad_delta.Device
 import com.example.cad_delta.ui.theme.Cad_deltaTheme
 import com.example.cad_delta.ui.utils.CurrencyUtils
+import com.example.cad_delta.ui.utils.DateUtils
 import com.example.cad_delta.ui.viewmodel.MainViewModel
 
 @Composable
@@ -122,7 +124,7 @@ fun CustomerDetailContent(
             TopAppBar(
                 title = {
                     Text(
-                        text = customerWithDevices?.customer?.name ?: "Detalhes do Cliente",
+                        text = customerWithDevices?.customer?.let { "OS #${it.id} - ${it.name}" } ?: "Detalhes do Cliente",
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -321,12 +323,27 @@ fun CustomerHeaderCard(
                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.padding(end = 8.dp)
                     )
-                    Text(
-                        text = customer.name,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
+                    Column {
+                        Surface(
+                            shape = MaterialTheme.shapes.extraSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ) {
+                            Text(
+                                text = "OS #${customer.id}",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = customer.name,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
                 }
             }
 
@@ -474,6 +491,23 @@ fun DeviceItemCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.outline
                 )
+            }
+
+            if (device.createdAt > 0L) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.CalendarToday,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.padding(end = 6.dp)
+                    )
+                    Text(
+                        text = "Cadastrado em: ${DateUtils.formatDate(device.createdAt)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                }
             }
 
             if (device.description.isNotBlank()) {
