@@ -121,7 +121,7 @@ fun CustomerListContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 12.dp),
-                placeholder = { Text("Buscar por nome, telefone ou CPF...") },
+                placeholder = { Text("Buscar por OS, nome, telefone ou CPF...") },
                 leadingIcon = {
                     Icon(imageVector = Icons.Default.Search, contentDescription = "Buscar")
                 },
@@ -230,12 +230,27 @@ fun CustomerItemCard(
                             modifier = Modifier.padding(8.dp)
                         )
                     }
-                    Text(
-                        text = item.customer.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Column {
+                        Surface(
+                            shape = MaterialTheme.shapes.extraSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ) {
+                            Text(
+                                text = "OS #${item.customer.id}",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = item.customer.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
 
                 IconButton(onClick = onDeleteClick) {
