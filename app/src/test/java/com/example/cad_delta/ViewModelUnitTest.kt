@@ -126,21 +126,31 @@ class ViewModelUnitTest {
 
         assertEquals("", viewModel.osFilter.value)
         assertEquals("", viewModel.searchQuery.value)
+        assertEquals("", viewModel.dateFilter.value)
 
         viewModel.onOsFilterChange("42")
         assertEquals("42", viewModel.osFilter.value)
+
+        viewModel.onDateFilterChange("25/12/2024")
+        assertEquals("25/12/2024", viewModel.dateFilter.value)
 
         viewModel.onSearchQueryChange("Maria")
         assertEquals("Maria", viewModel.searchQuery.value)
 
         viewModel.clearOsFilter()
         assertEquals("", viewModel.osFilter.value)
+        assertEquals("25/12/2024", viewModel.dateFilter.value)
         assertEquals("Maria", viewModel.searchQuery.value)
 
+        viewModel.clearDateFilter()
+        assertEquals("", viewModel.dateFilter.value)
+
         viewModel.onOsFilterChange("1")
+        viewModel.onDateFilterChange("10/10/2024")
         viewModel.clearAllFilters()
         assertEquals("", viewModel.osFilter.value)
         assertEquals("", viewModel.searchQuery.value)
+        assertEquals("", viewModel.dateFilter.value)
     }
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -168,6 +178,72 @@ class ViewModelUnitTest {
         viewModel.clearOsFilter()
         val resetList = viewModel.customersWithDevices.first { list -> list.size == 3 }
         assertEquals(3, resetList.size)
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun testDateFilteringLogic() = kotlinx.coroutines.test.runTest {
+        val timestamp1 = 1700000000000L // e.g. 14/11/2023 depending on timezone
+        val dateStr1 = com.example.cad_delta.ui.utils.DateUtils.formatDateOnly(timestamp1)
+
+        val timestamp2 = 1600000000000L // e.g. 13/09/2020 depending on timezone
+        val dateStr2 = com.example.cad_delta.ui.utils.DateUtils.formatDateOnly(timestamp2)
+
+        val devicesMap = mapOf(
+            1L to listOf(Device(10L, 1L, "Phone A", "Brand", "SN1", "Desc", 100.0, createdAt = timestamp1)),
+            42L to listOf(Device(20L, 42L, "Phone B", "Brand", "SN2", "Desc", 200.0, createdAt = timestamp2))
+        )
+
+        val fakeRepo = createFakeRepositoryWithDevices(devicesMap)
+        val viewModel = com.example.cad_delta.ui.viewmodel.MainViewModel(fakeRepo)
+
+        // Initial emission should contain all 3 customers
+        val initialList = viewModel.customersWithDevices.first { it.isNotEmpty() }
+        assertEquals(3, initialList.size)
+
+        // Filter by date matching customer 1 (Alice)
+        viewModel.onDateFilterChange(dateStr1)
+        val filteredListDate1 = viewModel.customersWithDevices.first { list -> list.size == 1 && list.first().customer.id == 1L }
+        assertEquals(1, filteredListDate1.size)
+        assertEquals(1L, filteredListDate1.first().customer.id)
+
+        // Filter by date matching customer 42 (Bob)
+        viewModel.onDateFilterChange(dateStr2)
+        val filteredListDate2 = viewModel.customersWithDevices.first { list -> list.size == 1 && list.first().customer.id == 42L }
+        assertEquals(1, filteredListDate2.size)
+        assertEquals(42L, filteredListDate2.first().customer.id)
+
+        // Clear date filter
+        viewModel.clearDateFilter()
+        val resetList = viewModel.customersWithDevices.first { list -> list.size == 3 }
+        assertEquals(3, resetList.size)
+    }
+
+    private fun createFakeRepositoryWithDevices(devicesMap: Map<Long, List<Device>>): AppRepository {
+        val fakeCustomerDao = object : CustomerDao {
+            override suspend fun insertCustomer(customer: Customer) = 1L
+            override suspend fun updateCustomer(customer: Customer) = 1
+            override suspend fun deleteCustomer(customer: Customer) = 1
+            override fun getAllCustomers() = kotlinx.coroutines.flow.flowOf(emptyList<Customer>())
+            override fun getCustomerById(id: Long) = kotlinx.coroutines.flow.flowOf(null)
+            override fun getCustomersWithDevices() = kotlinx.coroutines.flow.flowOf(
+                listOf(
+                    CustomerWithDevices(Customer(1L, "Alice", "111", "000", "Addr 1"), devicesMap[1L] ?: emptyList()),
+                    CustomerWithDevices(Customer(42L, "Bob", "222", "111", "Addr 2"), devicesMap[42L] ?: emptyList()),
+                    CustomerWithDevices(Customer(100L, "Charlie", "333", "222", "Addr 3"), devicesMap[100L] ?: emptyList())
+                )
+            )
+            override fun getCustomerWithDevicesById(id: Long) = kotlinx.coroutines.flow.flowOf(null)
+        }
+        val fakeDeviceDao = object : DeviceDao {
+            override suspend fun insertDevice(device: Device) = 1L
+            override suspend fun updateDevice(device: Device) = 1
+            override suspend fun deleteDevice(device: Device) = 1
+            override fun getAllDevices() = kotlinx.coroutines.flow.flowOf(emptyList<Device>())
+            override fun getDeviceById(id: Long) = kotlinx.coroutines.flow.flowOf(null)
+            override fun getDevicesByCustomerId(customerId: Long) = kotlinx.coroutines.flow.flowOf(emptyList<Device>())
+        }
+        return AppRepository(fakeCustomerDao, fakeDeviceDao)
     }
 
     private fun createFakeRepository(): AppRepository {

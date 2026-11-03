@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ConfirmationNumber
 import androidx.compose.material.icons.filled.Delete
@@ -32,6 +33,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -45,9 +48,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -60,6 +67,10 @@ import com.example.cad_delta.Device
 import com.example.cad_delta.ui.theme.Cad_deltaTheme
 import com.example.cad_delta.ui.utils.CurrencyUtils
 import com.example.cad_delta.ui.viewmodel.MainViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 @Composable
 fun CustomerListScreen(
@@ -69,17 +80,21 @@ fun CustomerListScreen(
 ) {
     val searchQuery by viewModel.searchQuery.collectAsState()
     val osFilter by viewModel.osFilter.collectAsState()
+    val dateFilter by viewModel.dateFilter.collectAsState()
     val customersWithDevices by viewModel.customersWithDevices.collectAsState()
     val customerToDelete by viewModel.customerToDelete.collectAsState()
 
     CustomerListContent(
         searchQuery = searchQuery,
         osFilter = osFilter,
+        dateFilter = dateFilter,
         customersWithDevices = customersWithDevices,
         customerToDelete = customerToDelete,
         onSearchQueryChange = viewModel::onSearchQueryChange,
         onOsFilterChange = viewModel::onOsFilterChange,
         onClearOsFilter = viewModel::clearOsFilter,
+        onDateFilterChange = viewModel::onDateFilterChange,
+        onClearDateFilter = viewModel::clearDateFilter,
         onClearAllFilters = viewModel::clearAllFilters,
         onAddCustomerClick = onNavigateToAddCustomer,
         onCustomerClick = { onNavigateToCustomerDetail(it.customer.id) },
@@ -94,11 +109,14 @@ fun CustomerListScreen(
 fun CustomerListContent(
     searchQuery: String,
     osFilter: String,
+    dateFilter: String,
     customersWithDevices: List<CustomerWithDevices>,
     customerToDelete: Customer?,
     onSearchQueryChange: (String) -> Unit,
     onOsFilterChange: (String) -> Unit,
     onClearOsFilter: () -> Unit,
+    onDateFilterChange: (String) -> Unit,
+    onClearDateFilter: () -> Unit,
     onClearAllFilters: () -> Unit,
     onAddCustomerClick: () -> Unit,
     onCustomerClick: (CustomerWithDevices) -> Unit,
@@ -106,6 +124,38 @@ fun CustomerListContent(
     onConfirmDeleteCustomer: () -> Unit,
     onDismissDeleteDialog: () -> Unit
 ) {
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState()
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val selectedMillis = datePickerState.selectedDateMillis
+                        if (selectedMillis != null) {
+                            val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).apply {
+                                timeZone = TimeZone.getTimeZone("UTC")
+                            }
+                            onDateFilterChange(formatter.format(Date(selectedMillis)))
+                        }
+                        showDatePicker = false
+                    }
+                ) {
+                    Text("Confirmar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancelar")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -155,7 +205,7 @@ fun CustomerListContent(
                 shape = MaterialTheme.shapes.medium
             )
 
-            // Dedicated OS Filter Component (FilterChip + Numeric OS Field)
+            // Dedicated Filters (Filter Chips)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -191,12 +241,51 @@ fun CustomerListContent(
                     }
                 )
 
+                FilterChip(
+                    selected = dateFilter.isNotEmpty(),
+                    onClick = {
+                        if (dateFilter.isNotEmpty()) {
+                            onClearDateFilter()
+                        } else {
+                            showDatePicker = true
+                        }
+                    },
+                    label = {
+                        Text(if (dateFilter.isEmpty()) "Filtro por Data de Entrada" else "Entrada: $dateFilter")
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.CalendarToday,
+                            contentDescription = "Filtro por Data de Entrada",
+                            modifier = Modifier.size(FilterChipDefaults.IconSize)
+                        )
+                    },
+                    trailingIcon = {
+                        if (dateFilter.isNotEmpty()) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = "Limpar filtro de data",
+                                modifier = Modifier.size(FilterChipDefaults.IconSize)
+                            )
+                        }
+                    }
+                )
+            }
+
+            // Dedicated Filter Inputs (Numeric OS Field & Entry Date Field)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 OutlinedTextField(
                     value = osFilter,
                     onValueChange = onOsFilterChange,
                     modifier = Modifier.weight(1f),
                     placeholder = { Text("Ex: 1, 42") },
-                    label = { Text("Filtrar por Nº da O.S") },
+                    label = { Text("Nº da O.S") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     leadingIcon = {
@@ -211,10 +300,33 @@ fun CustomerListContent(
                     },
                     shape = MaterialTheme.shapes.medium
                 )
+
+                OutlinedTextField(
+                    value = dateFilter,
+                    onValueChange = onDateFilterChange,
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("dd/mm/aaaa") },
+                    label = { Text("Data Entrada") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    leadingIcon = {
+                        IconButton(onClick = { showDatePicker = true }) {
+                            Icon(imageVector = Icons.Default.CalendarToday, contentDescription = "Abrir Calendário")
+                        }
+                    },
+                    trailingIcon = {
+                        if (dateFilter.isNotEmpty()) {
+                            IconButton(onClick = onClearDateFilter) {
+                                Icon(imageVector = Icons.Default.Clear, contentDescription = "Limpar Data")
+                            }
+                        }
+                    },
+                    shape = MaterialTheme.shapes.medium
+                )
             }
 
             // Active Filters Banner & Clear Option
-            if (searchQuery.isNotEmpty() || osFilter.isNotEmpty()) {
+            if (searchQuery.isNotEmpty() || osFilter.isNotEmpty() || dateFilter.isNotEmpty()) {
                 Surface(
                     shape = MaterialTheme.shapes.small,
                     color = MaterialTheme.colorScheme.secondaryContainer,
@@ -246,6 +358,7 @@ fun CustomerListContent(
                                     append("Filtros: ")
                                     val parts = mutableListOf<String>()
                                     if (osFilter.isNotEmpty()) parts.add("O.S #$osFilter")
+                                    if (dateFilter.isNotEmpty()) parts.add("Entrada: $dateFilter")
                                     if (searchQuery.isNotEmpty()) parts.add("\"$searchQuery\"")
                                     append(parts.joinToString(" • "))
                                 },
@@ -276,14 +389,14 @@ fun CustomerListContent(
                     contentAlignment = Alignment.Center
                 ) {
                     val emptyMessage = when {
-                        osFilter.isNotBlank() && searchQuery.isNotBlank() ->
-                            "Nenhum cliente/O.S encontrado para Ordem de Serviço #$osFilter e busca \"$searchQuery\"."
-                        osFilter.isNotBlank() ->
-                            "Nenhuma Ordem de Serviço (O.S) encontrada para \"$osFilter\"."
-                        searchQuery.isNotBlank() ->
-                            "Nenhum cliente encontrado para \"$searchQuery\"."
-                        else ->
-                            "Nenhum cliente cadastrado."
+                        osFilter.isNotBlank() || dateFilter.isNotBlank() || searchQuery.isNotBlank() -> {
+                            val details = mutableListOf<String>()
+                            if (osFilter.isNotBlank()) details.add("Ordem de Serviço #$osFilter")
+                            if (dateFilter.isNotBlank()) details.add("Data $dateFilter")
+                            if (searchQuery.isNotBlank()) details.add("busca \"$searchQuery\"")
+                            "Nenhum cliente/dispositivo encontrado para ${details.joinToString(" • ")}."
+                        }
+                        else -> "Nenhum cliente cadastrado."
                     }
                     Text(
                         text = emptyMessage,
@@ -494,6 +607,7 @@ fun CustomerListContentPreview() {
         CustomerListContent(
             searchQuery = "",
             osFilter = "42",
+            dateFilter = "25/12/2024",
             customersWithDevices = listOf(
                 CustomerWithDevices(
                     customer = Customer(42, "João Silva", "(11) 98765-4321", "123.456.789-00", "Rua Flores, 100"),
@@ -507,6 +621,8 @@ fun CustomerListContentPreview() {
             onSearchQueryChange = {},
             onOsFilterChange = {},
             onClearOsFilter = {},
+            onDateFilterChange = {},
+            onClearDateFilter = {},
             onClearAllFilters = {},
             onAddCustomerClick = {},
             onCustomerClick = {},

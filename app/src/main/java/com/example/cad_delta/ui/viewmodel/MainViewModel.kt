@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.example.cad_delta.ui.utils.DateUtils
 import java.util.Locale
 
 class MainViewModel(
@@ -28,6 +29,9 @@ class MainViewModel(
 
     private val _osFilter = MutableStateFlow("")
     val osFilter: StateFlow<String> = _osFilter.asStateFlow()
+
+    private val _dateFilter = MutableStateFlow("")
+    val dateFilter: StateFlow<String> = _dateFilter.asStateFlow()
 
     private val _customerToDelete = MutableStateFlow<Customer?>(null)
     val customerToDelete: StateFlow<Customer?> = _customerToDelete.asStateFlow()
@@ -41,8 +45,9 @@ class MainViewModel(
     val customersWithDevices: StateFlow<List<CustomerWithDevices>> = combine(
         repository.customersWithDevices,
         _searchQuery,
-        _osFilter
-    ) { list, query, osFilterVal ->
+        _osFilter,
+        _dateFilter
+    ) { list, query, osFilterVal, dateFilterVal ->
         var result = list
 
         if (osFilterVal.isNotBlank()) {
@@ -57,6 +62,16 @@ class MainViewModel(
                             customerIdStr.contains(osClean) ||
                             osLabel.contains(osClean) ||
                             osLabelShort.contains(osClean)
+                }
+            }
+        }
+
+        if (dateFilterVal.isNotBlank()) {
+            val targetDate = dateFilterVal.trim()
+            result = result.filter { item ->
+                item.devices.any { device ->
+                    val deviceDateStr = DateUtils.formatDateOnly(device.createdAt)
+                    deviceDateStr == targetDate || deviceDateStr.contains(targetDate)
                 }
             }
         }
@@ -95,9 +110,18 @@ class MainViewModel(
         _osFilter.value = ""
     }
 
+    fun onDateFilterChange(date: String) {
+        _dateFilter.value = date
+    }
+
+    fun clearDateFilter() {
+        _dateFilter.value = ""
+    }
+
     fun clearAllFilters() {
         _searchQuery.value = ""
         _osFilter.value = ""
+        _dateFilter.value = ""
     }
 
     fun onDeleteCustomerClick(customer: Customer) {

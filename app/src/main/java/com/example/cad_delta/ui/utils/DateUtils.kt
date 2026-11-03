@@ -11,5 +11,11 @@ object DateUtils {
         return sdf.format(Date(timestamp))
     }
 
+    fun formatDateOnly(timestamp: Long?): String {
+        if (timestamp == null || timestamp <= 0L) return ""
+        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        return sdf.format(Date(timestamp))
+    }
+
     fun formatTimestamp(timestamp: Long?): String = formatDate(timestamp)
 }
