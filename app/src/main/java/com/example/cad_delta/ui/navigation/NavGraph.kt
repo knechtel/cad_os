@@ -12,12 +12,14 @@ import com.example.cad_delta.ui.screens.AddEditCustomerScreen
 import com.example.cad_delta.ui.screens.AddEditDeviceScreen
 import com.example.cad_delta.ui.screens.CustomerDetailScreen
 import com.example.cad_delta.ui.screens.CustomerListScreen
+import com.example.cad_delta.ui.screens.DeliveredCustomerListScreen
 import com.example.cad_delta.ui.viewmodel.CustomerFormViewModel
 import com.example.cad_delta.ui.viewmodel.DeviceFormViewModel
 import com.example.cad_delta.ui.viewmodel.MainViewModel
 
 object NavRoutes {
     const val CUSTOMER_LIST = "customer_list"
+    const val DELIVERED_CUSTOMER_LIST = "delivered_customer_list"
     const val ADD_EDIT_CUSTOMER = "add_edit_customer/{customerId}"
     const val CUSTOMER_DETAIL = "customer_detail/{customerId}"
     const val ADD_EDIT_DEVICE = "add_edit_device/{customerId}/{deviceId}"
@@ -48,6 +50,28 @@ fun NavGraph(
                 },
                 onNavigateToCustomerDetail = { customerId ->
                     navController.navigate(NavRoutes.customerDetail(customerId))
+                },
+                onNavigateToDeliveryList = {
+                    mainViewModel.clearOsFilter()
+                    mainViewModel.clearDateFilter()
+                    mainViewModel.clearDeliveryDateFilter()
+                    navController.navigate(NavRoutes.DELIVERED_CUSTOMER_LIST)
+                }
+            )
+        }
+
+        composable(NavRoutes.DELIVERED_CUSTOMER_LIST) {
+            DeliveredCustomerListScreen(
+                viewModel = mainViewModel,
+                onNavigateToAddCustomer = { navController.navigate(NavRoutes.addEditCustomer(-1L)) },
+                onNavigateToCustomerDetail = { customerId ->
+                    navController.navigate(NavRoutes.customerDetail(customerId))
+                },
+                onNavigateToEntryList = {
+                    mainViewModel.clearDeliveryDateFilter()
+                    mainViewModel.clearOsFilter()
+                    mainViewModel.clearDateFilter()
+                    navController.navigate(NavRoutes.CUSTOMER_LIST)
                 }
             )
         }

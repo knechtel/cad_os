@@ -33,6 +33,9 @@ class MainViewModel(
     private val _dateFilter = MutableStateFlow("")
     val dateFilter: StateFlow<String> = _dateFilter.asStateFlow()
 
+    private val _deliveryDateFilter = MutableStateFlow("")
+    val deliveryDateFilter: StateFlow<String> = _deliveryDateFilter.asStateFlow()
+
     private val _customerToDelete = MutableStateFlow<Customer?>(null)
     val customerToDelete: StateFlow<Customer?> = _customerToDelete.asStateFlow()
 
@@ -46,8 +49,9 @@ class MainViewModel(
         repository.customersWithDevices,
         _searchQuery,
         _osFilter,
-        _dateFilter
-    ) { list, query, osFilterVal, dateFilterVal ->
+        _dateFilter,
+        _deliveryDateFilter
+    ) { list, query, osFilterVal, dateFilterVal, deliveryDateFilterVal ->
         var result = list
 
         if (osFilterVal.isNotBlank()) {
@@ -72,6 +76,20 @@ class MainViewModel(
                 item.devices.any { device ->
                     val deviceDateStr = DateUtils.formatDateOnly(device.createdAt)
                     deviceDateStr == targetDate || deviceDateStr.contains(targetDate)
+                }
+            }
+        }
+
+        if (deliveryDateFilterVal.isNotBlank()) {
+            val targetDeliveryDate = deliveryDateFilterVal.trim()
+            result = result.filter { item ->
+                item.devices.any { device ->
+                    if (device.isDelivered && device.deliveredAt != null) {
+                        val deliveredDateStr = DateUtils.formatDateOnly(device.deliveredAt)
+                        deliveredDateStr == targetDeliveryDate || deliveredDateStr.contains(targetDeliveryDate)
+                    } else {
+                        false
+                    }
                 }
             }
         }
@@ -118,10 +136,19 @@ class MainViewModel(
         _dateFilter.value = ""
     }
 
+    fun onDeliveryDateFilterChange(date: String) {
+        _deliveryDateFilter.value = date
+    }
+
+    fun clearDeliveryDateFilter() {
+        _deliveryDateFilter.value = ""
+    }
+
     fun clearAllFilters() {
         _searchQuery.value = ""
         _osFilter.value = ""
         _dateFilter.value = ""
+        _deliveryDateFilter.value = ""
     }
 
     fun onDeleteCustomerClick(customer: Customer) {

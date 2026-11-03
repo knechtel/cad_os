@@ -127,6 +127,7 @@ class ViewModelUnitTest {
         assertEquals("", viewModel.osFilter.value)
         assertEquals("", viewModel.searchQuery.value)
         assertEquals("", viewModel.dateFilter.value)
+        assertEquals("", viewModel.deliveryDateFilter.value)
 
         viewModel.onOsFilterChange("42")
         assertEquals("42", viewModel.osFilter.value)
@@ -134,23 +135,32 @@ class ViewModelUnitTest {
         viewModel.onDateFilterChange("25/12/2024")
         assertEquals("25/12/2024", viewModel.dateFilter.value)
 
+        viewModel.onDeliveryDateFilterChange("26/12/2024")
+        assertEquals("26/12/2024", viewModel.deliveryDateFilter.value)
+
         viewModel.onSearchQueryChange("Maria")
         assertEquals("Maria", viewModel.searchQuery.value)
 
         viewModel.clearOsFilter()
         assertEquals("", viewModel.osFilter.value)
         assertEquals("25/12/2024", viewModel.dateFilter.value)
+        assertEquals("26/12/2024", viewModel.deliveryDateFilter.value)
         assertEquals("Maria", viewModel.searchQuery.value)
 
         viewModel.clearDateFilter()
         assertEquals("", viewModel.dateFilter.value)
 
+        viewModel.clearDeliveryDateFilter()
+        assertEquals("", viewModel.deliveryDateFilter.value)
+
         viewModel.onOsFilterChange("1")
         viewModel.onDateFilterChange("10/10/2024")
+        viewModel.onDeliveryDateFilterChange("15/10/2024")
         viewModel.clearAllFilters()
         assertEquals("", viewModel.osFilter.value)
         assertEquals("", viewModel.searchQuery.value)
         assertEquals("", viewModel.dateFilter.value)
+        assertEquals("", viewModel.deliveryDateFilter.value)
     }
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -215,6 +225,45 @@ class ViewModelUnitTest {
 
         // Clear date filter
         viewModel.clearDateFilter()
+        val resetList = viewModel.customersWithDevices.first { list -> list.size == 3 }
+        assertEquals(3, resetList.size)
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun testDeliveryDateFilteringLogic() = kotlinx.coroutines.test.runTest {
+        val timestamp1 = 1700000000000L
+        val deliveryDateStr1 = com.example.cad_delta.ui.utils.DateUtils.formatDateOnly(timestamp1)
+
+        val timestamp2 = 1600000000000L
+        val deliveryDateStr2 = com.example.cad_delta.ui.utils.DateUtils.formatDateOnly(timestamp2)
+
+        val devicesMap = mapOf(
+            1L to listOf(Device(10L, 1L, "Phone A", "Brand", "SN1", "Desc", 100.0, isDelivered = true, deliveredAt = timestamp1)),
+            42L to listOf(Device(20L, 42L, "Phone B", "Brand", "SN2", "Desc", 200.0, isDelivered = false, deliveredAt = null)),
+            100L to listOf(Device(30L, 100L, "Phone C", "Brand", "SN3", "Desc", 300.0, isDelivered = true, deliveredAt = timestamp2))
+        )
+
+        val fakeRepo = createFakeRepositoryWithDevices(devicesMap)
+        val viewModel = com.example.cad_delta.ui.viewmodel.MainViewModel(fakeRepo)
+
+        val initialList = viewModel.customersWithDevices.first { it.isNotEmpty() }
+        assertEquals(3, initialList.size)
+
+        // Filter by delivery date matching customer 1 (Alice)
+        viewModel.onDeliveryDateFilterChange(deliveryDateStr1)
+        val filteredList1 = viewModel.customersWithDevices.first { list -> list.size == 1 && list.first().customer.id == 1L }
+        assertEquals(1, filteredList1.size)
+        assertEquals(1L, filteredList1.first().customer.id)
+
+        // Filter by delivery date matching customer 100 (Charlie)
+        viewModel.onDeliveryDateFilterChange(deliveryDateStr2)
+        val filteredList2 = viewModel.customersWithDevices.first { list -> list.size == 1 && list.first().customer.id == 100L }
+        assertEquals(1, filteredList2.size)
+        assertEquals(100L, filteredList2.first().customer.id)
+
+        // Clear delivery date filter
+        viewModel.clearDeliveryDateFilter()
         val resetList = viewModel.customersWithDevices.first { list -> list.size == 3 }
         assertEquals(3, resetList.size)
     }

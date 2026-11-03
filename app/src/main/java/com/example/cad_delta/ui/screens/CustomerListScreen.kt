@@ -1,6 +1,7 @@
 package com.example.cad_delta.ui.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -23,6 +25,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ConfirmationNumber
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
@@ -76,11 +79,14 @@ import java.util.TimeZone
 fun CustomerListScreen(
     viewModel: MainViewModel,
     onNavigateToAddCustomer: () -> Unit,
-    onNavigateToCustomerDetail: (Long) -> Unit
+    onNavigateToCustomerDetail: (Long) -> Unit,
+    onNavigateToDeliveryList: () -> Unit = {},
+    deliveryOnly: Boolean = false
 ) {
     val searchQuery by viewModel.searchQuery.collectAsState()
     val osFilter by viewModel.osFilter.collectAsState()
     val dateFilter by viewModel.dateFilter.collectAsState()
+    val deliveryDateFilter by viewModel.deliveryDateFilter.collectAsState()
     val customersWithDevices by viewModel.customersWithDevices.collectAsState()
     val customerToDelete by viewModel.customerToDelete.collectAsState()
 
@@ -88,13 +94,18 @@ fun CustomerListScreen(
         searchQuery = searchQuery,
         osFilter = osFilter,
         dateFilter = dateFilter,
+        deliveryDateFilter = deliveryDateFilter,
         customersWithDevices = customersWithDevices,
         customerToDelete = customerToDelete,
+        deliveryOnly = deliveryOnly,
+        onNavigateToDeliveryList = onNavigateToDeliveryList,
         onSearchQueryChange = viewModel::onSearchQueryChange,
         onOsFilterChange = viewModel::onOsFilterChange,
         onClearOsFilter = viewModel::clearOsFilter,
         onDateFilterChange = viewModel::onDateFilterChange,
         onClearDateFilter = viewModel::clearDateFilter,
+        onDeliveryDateFilterChange = viewModel::onDeliveryDateFilterChange,
+        onClearDeliveryDateFilter = viewModel::clearDeliveryDateFilter,
         onClearAllFilters = viewModel::clearAllFilters,
         onAddCustomerClick = onNavigateToAddCustomer,
         onCustomerClick = { onNavigateToCustomerDetail(it.customer.id) },
@@ -104,19 +115,40 @@ fun CustomerListScreen(
     )
 }
 
+@Composable
+fun DeliveredCustomerListScreen(
+    viewModel: MainViewModel,
+    onNavigateToAddCustomer: () -> Unit,
+    onNavigateToCustomerDetail: (Long) -> Unit,
+    onNavigateToEntryList: () -> Unit
+) {
+    CustomerListScreen(
+        viewModel = viewModel,
+        onNavigateToAddCustomer = onNavigateToAddCustomer,
+        onNavigateToCustomerDetail = onNavigateToCustomerDetail,
+        onNavigateToDeliveryList = onNavigateToEntryList,
+        deliveryOnly = true
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomerListContent(
     searchQuery: String,
     osFilter: String,
     dateFilter: String,
+    deliveryDateFilter: String,
     customersWithDevices: List<CustomerWithDevices>,
     customerToDelete: Customer?,
+    deliveryOnly: Boolean,
+    onNavigateToDeliveryList: () -> Unit,
     onSearchQueryChange: (String) -> Unit,
     onOsFilterChange: (String) -> Unit,
     onClearOsFilter: () -> Unit,
     onDateFilterChange: (String) -> Unit,
     onClearDateFilter: () -> Unit,
+    onDeliveryDateFilterChange: (String) -> Unit,
+    onClearDeliveryDateFilter: () -> Unit,
     onClearAllFilters: () -> Unit,
     onAddCustomerClick: () -> Unit,
     onCustomerClick: (CustomerWithDevices) -> Unit,
@@ -125,6 +157,7 @@ fun CustomerListContent(
     onDismissDeleteDialog: () -> Unit
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
+    var showDeliveryDatePicker by remember { mutableStateOf(false) }
 
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState()
@@ -156,10 +189,45 @@ fun CustomerListContent(
         }
     }
 
+    if (showDeliveryDatePicker) {
+        val deliveryDatePickerState = rememberDatePickerState()
+        DatePickerDialog(
+            onDismissRequest = { showDeliveryDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val selectedMillis = deliveryDatePickerState.selectedDateMillis
+                        if (selectedMillis != null) {
+                            val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).apply {
+                                timeZone = TimeZone.getTimeZone("UTC")
+                            }
+                            onDeliveryDateFilterChange(formatter.format(Date(selectedMillis)))
+                        }
+                        showDeliveryDatePicker = false
+                    }
+                ) {
+                    Text("Confirmar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeliveryDatePicker = false }) {
+                    Text("Cancelar")
+                }
+            }
+        ) {
+            DatePicker(state = deliveryDatePickerState)
+        }
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Lista de Clientes", fontWeight = FontWeight.Bold) },
+                title = { Text(if (deliveryOnly) "Clientes Entregues" else "Lista de Clientes", fontWeight = FontWeight.Bold) },
+                actions = {
+                    TextButton(onClick = onNavigateToDeliveryList) {
+                        Text(if (deliveryOnly) "Entrada e ID" else "Entregues")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -209,11 +277,12 @@ fun CustomerListContent(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
                     .padding(bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                FilterChip(
+                if (!deliveryOnly) FilterChip(
                     selected = osFilter.isNotEmpty(),
                     onClick = {
                         if (osFilter.isNotEmpty()) {
@@ -221,12 +290,12 @@ fun CustomerListContent(
                         }
                     },
                     label = {
-                        Text(if (osFilter.isEmpty()) "Filtro de O.S" else "O.S #$osFilter")
+                        Text(if (osFilter.isEmpty()) "Filtro por ID" else "ID #$osFilter")
                     },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.ConfirmationNumber,
-                            contentDescription = "Filtro de O.S",
+                            contentDescription = "Filtro por ID",
                             modifier = Modifier.size(FilterChipDefaults.IconSize)
                         )
                     },
@@ -234,14 +303,14 @@ fun CustomerListContent(
                         if (osFilter.isNotEmpty()) {
                             Icon(
                                 imageVector = Icons.Default.Clear,
-                                contentDescription = "Limpar filtro de O.S",
+                                contentDescription = "Limpar filtro por ID",
                                 modifier = Modifier.size(FilterChipDefaults.IconSize)
                             )
                         }
                     }
                 )
 
-                FilterChip(
+                if (!deliveryOnly) FilterChip(
                     selected = dateFilter.isNotEmpty(),
                     onClick = {
                         if (dateFilter.isNotEmpty()) {
@@ -270,9 +339,39 @@ fun CustomerListContent(
                         }
                     }
                 )
+
+                if (deliveryOnly) FilterChip(
+                    selected = deliveryDateFilter.isNotEmpty(),
+                    onClick = {
+                        if (deliveryDateFilter.isNotEmpty()) {
+                            onClearDeliveryDateFilter()
+                        } else {
+                            showDeliveryDatePicker = true
+                        }
+                    },
+                    label = {
+                        Text(if (deliveryDateFilter.isEmpty()) "Filtro por Data Entregue" else "Entregue: $deliveryDateFilter")
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.EventAvailable,
+                            contentDescription = "Filtro por Data Entregue",
+                            modifier = Modifier.size(FilterChipDefaults.IconSize)
+                        )
+                    },
+                    trailingIcon = {
+                        if (deliveryDateFilter.isNotEmpty()) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = "Limpar filtro de data entregue",
+                                modifier = Modifier.size(FilterChipDefaults.IconSize)
+                            )
+                        }
+                    }
+                )
             }
 
-            // Dedicated Filter Inputs (Numeric OS Field & Entry Date Field)
+            // Dedicated Filter Inputs (Numeric OS Field, Entry Date Field & Delivery Date Field)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -280,28 +379,28 @@ fun CustomerListContent(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedTextField(
+                if (!deliveryOnly) OutlinedTextField(
                     value = osFilter,
                     onValueChange = onOsFilterChange,
                     modifier = Modifier.weight(1f),
                     placeholder = { Text("Ex: 1, 42") },
-                    label = { Text("Nº da O.S") },
+                    label = { Text("ID do Cliente") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     leadingIcon = {
-                        Icon(imageVector = Icons.Default.Tag, contentDescription = "Nº da O.S")
+                        Icon(imageVector = Icons.Default.Tag, contentDescription = "ID do Cliente")
                     },
                     trailingIcon = {
                         if (osFilter.isNotEmpty()) {
                             IconButton(onClick = onClearOsFilter) {
-                                Icon(imageVector = Icons.Default.Clear, contentDescription = "Limpar O.S")
+                                Icon(imageVector = Icons.Default.Clear, contentDescription = "Limpar ID")
                             }
                         }
                     },
                     shape = MaterialTheme.shapes.medium
                 )
 
-                OutlinedTextField(
+                if (!deliveryOnly) OutlinedTextField(
                     value = dateFilter,
                     onValueChange = onDateFilterChange,
                     modifier = Modifier.weight(1f),
@@ -311,13 +410,36 @@ fun CustomerListContent(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     leadingIcon = {
                         IconButton(onClick = { showDatePicker = true }) {
-                            Icon(imageVector = Icons.Default.CalendarToday, contentDescription = "Abrir Calendário")
+                            Icon(imageVector = Icons.Default.CalendarToday, contentDescription = "Abrir Calendário Data Entrada")
                         }
                     },
                     trailingIcon = {
                         if (dateFilter.isNotEmpty()) {
                             IconButton(onClick = onClearDateFilter) {
-                                Icon(imageVector = Icons.Default.Clear, contentDescription = "Limpar Data")
+                                Icon(imageVector = Icons.Default.Clear, contentDescription = "Limpar Data Entrada")
+                            }
+                        }
+                    },
+                    shape = MaterialTheme.shapes.medium
+                )
+
+                if (deliveryOnly) OutlinedTextField(
+                    value = deliveryDateFilter,
+                    onValueChange = onDeliveryDateFilterChange,
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("dd/mm/aaaa") },
+                    label = { Text("Data Entregue") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    leadingIcon = {
+                        IconButton(onClick = { showDeliveryDatePicker = true }) {
+                            Icon(imageVector = Icons.Default.EventAvailable, contentDescription = "Abrir Calendário Data Entregue")
+                        }
+                    },
+                    trailingIcon = {
+                        if (deliveryDateFilter.isNotEmpty()) {
+                            IconButton(onClick = onClearDeliveryDateFilter) {
+                                Icon(imageVector = Icons.Default.Clear, contentDescription = "Limpar Data Entregue")
                             }
                         }
                     },
@@ -326,7 +448,7 @@ fun CustomerListContent(
             }
 
             // Active Filters Banner & Clear Option
-            if (searchQuery.isNotEmpty() || osFilter.isNotEmpty() || dateFilter.isNotEmpty()) {
+            if (searchQuery.isNotEmpty() || osFilter.isNotEmpty() || dateFilter.isNotEmpty() || deliveryDateFilter.isNotEmpty()) {
                 Surface(
                     shape = MaterialTheme.shapes.small,
                     color = MaterialTheme.colorScheme.secondaryContainer,
@@ -357,8 +479,9 @@ fun CustomerListContent(
                                 text = buildString {
                                     append("Filtros: ")
                                     val parts = mutableListOf<String>()
-                                    if (osFilter.isNotEmpty()) parts.add("O.S #$osFilter")
+                                    if (osFilter.isNotEmpty()) parts.add("ID #$osFilter")
                                     if (dateFilter.isNotEmpty()) parts.add("Entrada: $dateFilter")
+                                    if (deliveryDateFilter.isNotEmpty()) parts.add("Entregue: $deliveryDateFilter")
                                     if (searchQuery.isNotEmpty()) parts.add("\"$searchQuery\"")
                                     append(parts.joinToString(" • "))
                                 },
@@ -389,10 +512,11 @@ fun CustomerListContent(
                     contentAlignment = Alignment.Center
                 ) {
                     val emptyMessage = when {
-                        osFilter.isNotBlank() || dateFilter.isNotBlank() || searchQuery.isNotBlank() -> {
+                        osFilter.isNotBlank() || dateFilter.isNotBlank() || deliveryDateFilter.isNotBlank() || searchQuery.isNotBlank() -> {
                             val details = mutableListOf<String>()
-                            if (osFilter.isNotBlank()) details.add("Ordem de Serviço #$osFilter")
-                            if (dateFilter.isNotBlank()) details.add("Data $dateFilter")
+                            if (osFilter.isNotBlank()) details.add("ID #$osFilter")
+                            if (dateFilter.isNotBlank()) details.add("Data Entrada $dateFilter")
+                            if (deliveryDateFilter.isNotBlank()) details.add("Data Entregue $deliveryDateFilter")
                             if (searchQuery.isNotBlank()) details.add("busca \"$searchQuery\"")
                             "Nenhum cliente/dispositivo encontrado para ${details.joinToString(" • ")}."
                         }
@@ -608,6 +732,7 @@ fun CustomerListContentPreview() {
             searchQuery = "",
             osFilter = "42",
             dateFilter = "25/12/2024",
+            deliveryDateFilter = "",
             customersWithDevices = listOf(
                 CustomerWithDevices(
                     customer = Customer(42, "João Silva", "(11) 98765-4321", "123.456.789-00", "Rua Flores, 100"),
@@ -618,11 +743,15 @@ fun CustomerListContentPreview() {
                 )
             ),
             customerToDelete = null,
+            deliveryOnly = false,
+            onNavigateToDeliveryList = {},
             onSearchQueryChange = {},
             onOsFilterChange = {},
             onClearOsFilter = {},
             onDateFilterChange = {},
             onClearDateFilter = {},
+            onDeliveryDateFilterChange = {},
+            onClearDeliveryDateFilter = {},
             onClearAllFilters = {},
             onAddCustomerClick = {},
             onCustomerClick = {},
