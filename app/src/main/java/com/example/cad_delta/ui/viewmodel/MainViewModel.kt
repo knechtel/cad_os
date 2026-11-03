@@ -26,6 +26,9 @@ class MainViewModel(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
+    private val _osFilter = MutableStateFlow("")
+    val osFilter: StateFlow<String> = _osFilter.asStateFlow()
+
     private val _customerToDelete = MutableStateFlow<Customer?>(null)
     val customerToDelete: StateFlow<Customer?> = _customerToDelete.asStateFlow()
 
@@ -37,24 +40,43 @@ class MainViewModel(
 
     val customersWithDevices: StateFlow<List<CustomerWithDevices>> = combine(
         repository.customersWithDevices,
-        _searchQuery
-    ) { list, query ->
-        if (query.isBlank()) {
-            list
-        } else {
+        _searchQuery,
+        _osFilter
+    ) { list, query, osFilterVal ->
+        var result = list
+
+        if (osFilterVal.isNotBlank()) {
+            val osClean = osFilterVal.trim().lowercase(Locale.getDefault())
+                .removePrefix("os").removePrefix("#").trim()
+            if (osClean.isNotEmpty()) {
+                result = result.filter { item ->
+                    val customerIdStr = item.customer.id.toString()
+                    val osLabel = "os #${item.customer.id}".lowercase(Locale.getDefault())
+                    val osLabelShort = "os:${item.customer.id}".lowercase(Locale.getDefault())
+                    customerIdStr == osClean ||
+                            customerIdStr.contains(osClean) ||
+                            osLabel.contains(osClean) ||
+                            osLabelShort.contains(osClean)
+                }
+            }
+        }
+
+        if (query.isNotBlank()) {
             val q = query.trim().lowercase(Locale.getDefault())
             val digitsOnly = q.removePrefix("os").removePrefix("#").trim()
-            list.filter { item ->
+            result = result.filter { item ->
                 item.customer.name.lowercase(Locale.getDefault()).contains(q) ||
                         item.customer.phone.lowercase(Locale.getDefault()).contains(q) ||
                         item.customer.cpf.lowercase(Locale.getDefault()).contains(q) ||
                         item.customer.address.lowercase(Locale.getDefault()).contains(q) ||
                         item.customer.id.toString() == q ||
-                        ("os #${item.customer.id}".contains(q)) ||
-                        ("os:${item.customer.id}".contains(q)) ||
+                        ("os #${item.customer.id}".lowercase(Locale.getDefault()).contains(q)) ||
+                        ("os:${item.customer.id}".lowercase(Locale.getDefault()).contains(q)) ||
                         (digitsOnly.isNotEmpty() && item.customer.id.toString() == digitsOnly)
             }
         }
+
+        result
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -63,6 +85,19 @@ class MainViewModel(
 
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
+    }
+
+    fun onOsFilterChange(filter: String) {
+        _osFilter.value = filter
+    }
+
+    fun clearOsFilter() {
+        _osFilter.value = ""
+    }
+
+    fun clearAllFilters() {
+        _searchQuery.value = ""
+        _osFilter.value = ""
     }
 
     fun onDeleteCustomerClick(customer: Customer) {
