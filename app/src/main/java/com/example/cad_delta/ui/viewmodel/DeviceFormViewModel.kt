@@ -19,6 +19,9 @@ data class DeviceFormState(
     val description: String = "",
     val price: String = "",
     val createdAt: Long = 0L,
+    val isDelivered: Boolean = false,
+    val deliveredAt: Long? = null,
+    val isAlreadyDeliveredOnLoad: Boolean = false,
     val modelError: String? = null,
     val brandError: String? = null,
     val serialError: String? = null,
@@ -52,6 +55,9 @@ class DeviceFormViewModel(
                     description = device.description,
                     price = device.price.toString(),
                     createdAt = device.createdAt,
+                    isDelivered = device.isDelivered,
+                    deliveredAt = device.deliveredAt,
+                    isAlreadyDeliveredOnLoad = device.isDelivered,
                     isLoading = false
                 )
             } else {
@@ -89,6 +95,19 @@ class DeviceFormViewModel(
         _uiState.value = _uiState.value.copy(
             price = value,
             priceError = if (value.isNotBlank()) null else _uiState.value.priceError
+        )
+    }
+
+    fun onIsDeliveredChange(checked: Boolean) {
+        val currentDeliveredAt = _uiState.value.deliveredAt
+        val newDeliveredAt = if (checked) {
+            currentDeliveredAt ?: System.currentTimeMillis()
+        } else {
+            null
+        }
+        _uiState.value = _uiState.value.copy(
+            isDelivered = checked,
+            deliveredAt = newDeliveredAt
         )
     }
 
@@ -137,6 +156,11 @@ class DeviceFormViewModel(
             } else {
                 if (currentState.createdAt > 0L) currentState.createdAt else System.currentTimeMillis()
             }
+            val targetDeliveredAt = if (currentState.isDelivered) {
+                currentState.deliveredAt ?: System.currentTimeMillis()
+            } else {
+                null
+            }
             val device = Device(
                 id = currentState.id,
                 customerId = if (currentState.customerId > 0) currentState.customerId else customerId,
@@ -145,7 +169,9 @@ class DeviceFormViewModel(
                 serialNumber = currentState.serialNumber.trim(),
                 description = currentState.description.trim(),
                 price = parsedPrice ?: 0.0,
-                createdAt = targetCreatedAt
+                createdAt = targetCreatedAt,
+                isDelivered = currentState.isDelivered,
+                deliveredAt = targetDeliveredAt
             )
             if (device.id <= 0) {
                 repository.insertDevice(device)

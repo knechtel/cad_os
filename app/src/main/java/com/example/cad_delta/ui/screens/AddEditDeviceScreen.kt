@@ -1,26 +1,33 @@
 package com.example.cad_delta.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -42,6 +49,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.cad_delta.ui.theme.Cad_deltaTheme
+import com.example.cad_delta.ui.utils.DateUtils
 import com.example.cad_delta.ui.viewmodel.DeviceFormState
 import com.example.cad_delta.ui.viewmodel.DeviceFormViewModel
 
@@ -66,6 +74,7 @@ fun AddEditDeviceScreen(
         onSerialNumberChange = viewModel::onSerialNumberChange,
         onDescriptionChange = viewModel::onDescriptionChange,
         onPriceChange = viewModel::onPriceChange,
+        onIsDeliveredChange = viewModel::onIsDeliveredChange,
         onSaveClick = { viewModel.saveDevice(customerId, onSuccess = onNavigateBack) },
         onNavigateBack = onNavigateBack
     )
@@ -81,10 +90,12 @@ fun AddEditDeviceContent(
     onSerialNumberChange: (String) -> Unit,
     onDescriptionChange: (String) -> Unit,
     onPriceChange: (String) -> Unit,
+    onIsDeliveredChange: (Boolean) -> Unit,
     onSaveClick: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
     val title = if (deviceId <= 0) "Novo Dispositivo" else "Editar Dispositivo"
+    val isEditable = !uiState.isAlreadyDeliveredOnLoad
 
     Scaffold(
         topBar = {
@@ -124,6 +135,36 @@ fun AddEditDeviceContent(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                if (uiState.isAlreadyDeliveredOnLoad || uiState.isDelivered) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (uiState.isAlreadyDeliveredOnLoad) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = if (uiState.isAlreadyDeliveredOnLoad) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                            Text(
+                                text = if (uiState.isAlreadyDeliveredOnLoad) {
+                                    "Este aparelho já foi entregue em ${DateUtils.formatDate(uiState.deliveredAt)}. Aparelhos entregues não podem ser editados."
+                                } else {
+                                    "Aparelho marcado como Entregue (Saída: ${DateUtils.formatDate(uiState.deliveredAt)})."
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (uiState.isAlreadyDeliveredOnLoad) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                }
+
                 Text(
                     text = "Preencha as informações do dispositivo:",
                     style = MaterialTheme.typography.titleMedium,
@@ -141,6 +182,7 @@ fun AddEditDeviceContent(
                     },
                     isError = uiState.modelError != null,
                     supportingText = uiState.modelError?.let { { Text(it) } },
+                    enabled = isEditable && !uiState.isDelivered,
                     singleLine = true
                 )
 
@@ -155,6 +197,7 @@ fun AddEditDeviceContent(
                     },
                     isError = uiState.brandError != null,
                     supportingText = uiState.brandError?.let { { Text(it) } },
+                    enabled = isEditable && !uiState.isDelivered,
                     singleLine = true
                 )
 
@@ -168,6 +211,7 @@ fun AddEditDeviceContent(
                     },
                     isError = uiState.serialError != null,
                     supportingText = uiState.serialError?.let { { Text(it) } },
+                    enabled = isEditable && !uiState.isDelivered,
                     singleLine = true
                 )
 
@@ -179,6 +223,7 @@ fun AddEditDeviceContent(
                     leadingIcon = {
                         Icon(imageVector = Icons.Default.Description, contentDescription = null)
                     },
+                    enabled = isEditable && !uiState.isDelivered,
                     minLines = 3,
                     maxLines = 5
                 )
@@ -195,8 +240,40 @@ fun AddEditDeviceContent(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     isError = uiState.priceError != null,
                     supportingText = uiState.priceError?.let { { Text(it) } },
+                    enabled = isEditable && !uiState.isDelivered,
                     singleLine = true
                 )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = isEditable) {
+                            onIsDeliveredChange(!uiState.isDelivered)
+                        }
+                        .padding(vertical = 4.dp)
+                ) {
+                    Checkbox(
+                        checked = uiState.isDelivered,
+                        onCheckedChange = onIsDeliveredChange,
+                        enabled = isEditable
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = "Aparelho Entregue",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (uiState.isDelivered && uiState.deliveredAt != null) {
+                            Text(
+                                text = "Data de Saída: ${DateUtils.formatDate(uiState.deliveredAt)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -205,7 +282,7 @@ fun AddEditDeviceContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
-                    enabled = !uiState.isSaving
+                    enabled = isEditable && !uiState.isSaving
                 ) {
                     if (uiState.isSaving) {
                         CircularProgressIndicator(
@@ -248,6 +325,7 @@ fun AddEditDeviceContentPreview() {
             onSerialNumberChange = {},
             onDescriptionChange = {},
             onPriceChange = {},
+            onIsDeliveredChange = {},
             onSaveClick = {},
             onNavigateBack = {}
         )

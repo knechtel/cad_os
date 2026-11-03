@@ -5,11 +5,11 @@ import java.util.Date
 import java.util.Locale
 
 object DateUtils {
-    fun formatDate(timestamp: Long): String {
-        if (timestamp <= 0L) return ""
+    fun formatDate(timestamp: Long?): String {
+        if (timestamp == null || timestamp <= 0L) return "-"
         val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
         return sdf.format(Date(timestamp))
     }
 
-    fun formatTimestamp(timestamp: Long): String = formatDate(timestamp)
+    fun formatTimestamp(timestamp: Long?): String = formatDate(timestamp)
 }

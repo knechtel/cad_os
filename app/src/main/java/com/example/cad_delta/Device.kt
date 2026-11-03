@@ -26,5 +26,7 @@ data class Device(
     val serialNumber: String,
     val description: String,
     val price: Double,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val isDelivered: Boolean = false,
+    val deliveredAt: Long? = null
 )

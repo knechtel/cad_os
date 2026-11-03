@@ -1,5 +1,6 @@
 package com.example.cad_delta.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,9 +19,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
@@ -30,6 +34,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -100,7 +105,8 @@ fun CustomerDetailScreen(
         onDeleteDeviceClick = viewModel::onDeleteDeviceClick,
         onConfirmDeleteDevice = viewModel::onConfirmDeleteDevice,
         onDismissDeleteDeviceDialog = viewModel::onDismissDeleteDeviceDialog,
-        onGeneratePdfClick = { viewModel.generateAndSharePdf(context, customerWithDevices) }
+        onGeneratePdfClick = { viewModel.generateAndSharePdf(context, customerWithDevices) },
+        onToggleDeviceDelivered = viewModel::onToggleDeviceDelivered
     )
 }
 
@@ -117,7 +123,8 @@ fun CustomerDetailContent(
     onDeleteDeviceClick: (Device) -> Unit,
     onConfirmDeleteDevice: () -> Unit,
     onDismissDeleteDeviceDialog: () -> Unit,
-    onGeneratePdfClick: () -> Unit
+    onGeneratePdfClick: () -> Unit,
+    onToggleDeviceDelivered: (Device, Boolean) -> Unit = { _, _ -> }
 ) {
     Scaffold(
         topBar = {
@@ -265,7 +272,8 @@ fun CustomerDetailContent(
                         DeviceItemCard(
                             device = device,
                             onEditClick = { onEditDeviceClick(device.id) },
-                            onDeleteClick = { onDeleteDeviceClick(device) }
+                            onDeleteClick = { onDeleteDeviceClick(device) },
+                            onToggleDelivered = { isDelivered -> onToggleDeviceDelivered(device, isDelivered) }
                         )
                     }
                 }
@@ -426,7 +434,8 @@ fun CustomerHeaderCard(
 fun DeviceItemCard(
     device: Device,
     onEditClick: () -> Unit,
-    onDeleteClick: () -> Unit
+    onDeleteClick: () -> Unit,
+    onToggleDelivered: (Boolean) -> Unit = {}
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -452,20 +461,47 @@ fun DeviceItemCard(
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(end = 8.dp)
                     )
-                    Text(
-                        text = "${device.model} (${device.brand})",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Column {
+                        Text(
+                            text = "${device.model} (${device.brand})",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Surface(
+                            shape = MaterialTheme.shapes.extraSmall,
+                            color = if (device.isDelivered) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = if (device.isDelivered) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (device.isDelivered) Icons.Default.CheckCircle else Icons.Default.Devices,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (device.isDelivered) "Status: Entregue" else "Status: Em manutenção",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
                 }
 
                 Row {
-                    IconButton(onClick = onEditClick) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Editar Dispositivo",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                    if (!device.isDelivered) {
+                        IconButton(onClick = onEditClick) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Editar Dispositivo",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                     IconButton(onClick = onDeleteClick) {
                         Icon(
@@ -477,7 +513,28 @@ fun DeviceItemCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clickable { onToggleDelivered(!device.isDelivered) }
+                    .padding(vertical = 2.dp)
+            ) {
+                Checkbox(
+                    checked = device.isDelivered,
+                    onCheckedChange = onToggleDelivered,
+                    modifier = Modifier.size(28.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Entregue",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -506,6 +563,24 @@ fun DeviceItemCard(
                         text = "Cadastrado em: ${DateUtils.formatDate(device.createdAt)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.outline
+                    )
+                }
+            }
+
+            if (device.isDelivered && device.deliveredAt != null) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.EventAvailable,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(end = 6.dp)
+                    )
+                    Text(
+                        text = "Data de Saída: ${DateUtils.formatDate(device.deliveredAt)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -545,8 +620,8 @@ fun CustomerDetailContentPreview() {
             customerWithDevices = CustomerWithDevices(
                 customer = Customer(1, "João Silva", "(11) 98765-4321", "123.456.789-00", "Rua Flores, 100"),
                 devices = listOf(
-                    Device(1, 1, "iPhone 13", "Apple", "SN12345", "Troca de Tela", 1200.0),
-                    Device(2, 1, "Galaxy S22", "Samsung", "SN67890", "Bateria", 450.0)
+                    Device(1, 1, "iPhone 13", "Apple", "SN12345", "Troca de Tela", 1200.0, isDelivered = true, deliveredAt = System.currentTimeMillis()),
+                    Device(2, 1, "Galaxy S22", "Samsung", "SN67890", "Bateria", 450.0, isDelivered = false)
                 )
             ),
             deviceToDelete = null,

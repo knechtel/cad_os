@@ -68,6 +68,16 @@ class ViewModelUnitTest {
     }
 
     @Test
+    fun testDateUtilsFormattingWithNullAndZero() {
+        val formattedNull = com.example.cad_delta.ui.utils.DateUtils.formatDate(null)
+        assertEquals("-", formattedNull)
+        val formattedZero = com.example.cad_delta.ui.utils.DateUtils.formatDate(0L)
+        assertEquals("-", formattedZero)
+        val formattedNegative = com.example.cad_delta.ui.utils.DateUtils.formatDate(-100L)
+        assertEquals("-", formattedNegative)
+    }
+
+    @Test
     fun testDeviceCreatedAtDefaultAndPreservation() {
         val startTime = System.currentTimeMillis()
         val device = Device(
@@ -80,12 +90,16 @@ class ViewModelUnitTest {
             price = 999.0
         )
         org.junit.Assert.assertTrue(device.createdAt >= startTime)
+        org.junit.Assert.assertFalse(device.isDelivered)
+        assertNull(device.deliveredAt)
 
         val fixedTimestamp = 1600000000000L
         val oldDevice = device.copy(id = 1L, createdAt = fixedTimestamp)
         assertEquals(fixedTimestamp, oldDevice.createdAt)
 
-        val updatedDevice = oldDevice.copy(model = "Pixel 7 Pro")
+        val updatedDevice = oldDevice.copy(model = "Pixel 7 Pro", isDelivered = true, deliveredAt = System.currentTimeMillis())
         assertEquals(fixedTimestamp, updatedDevice.createdAt)
+        org.junit.Assert.assertTrue(updatedDevice.isDelivered)
+        assertNotNull(updatedDevice.deliveredAt)
     }
 }

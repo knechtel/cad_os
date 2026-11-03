@@ -183,14 +183,15 @@ object PdfGenerator {
                 val headerRect = RectF(leftMargin, topY, rightMargin, topY + 22f)
                 c.drawRect(headerRect, tableHeaderBgPaint)
                 val headerTextY = topY + 15f
-                c.drawText("Modelo", leftMargin + 6f, headerTextY, tableHeaderPaint)
-                c.drawText("Marca", leftMargin + 95f, headerTextY, tableHeaderPaint)
-                c.drawText("Nº Série", leftMargin + 160f, headerTextY, tableHeaderPaint)
-                c.drawText("Data Cadastro", leftMargin + 230f, headerTextY, tableHeaderPaint)
-                c.drawText("Descrição", leftMargin + 330f, headerTextY, tableHeaderPaint)
+                c.drawText("Modelo", leftMargin + 4f, headerTextY, tableHeaderPaint)
+                c.drawText("Marca", leftMargin + 72f, headerTextY, tableHeaderPaint)
+                c.drawText("Nº Série", leftMargin + 124f, headerTextY, tableHeaderPaint)
+                c.drawText("Entrada", leftMargin + 178f, headerTextY, tableHeaderPaint)
+                c.drawText("Data Saída", leftMargin + 258f, headerTextY, tableHeaderPaint)
+                c.drawText("Descrição", leftMargin + 346f, headerTextY, tableHeaderPaint)
                 val priceHeader = "Preço (R$)"
                 val priceWidth = tableHeaderPaint.measureText(priceHeader)
-                c.drawText(priceHeader, rightMargin - 6f - priceWidth, headerTextY, tableHeaderPaint)
+                c.drawText(priceHeader, rightMargin - 4f - priceWidth, headerTextY, tableHeaderPaint)
             }
 
             drawTableHeader(canvas, y)
@@ -228,18 +229,25 @@ object PdfGenerator {
                     canvas.drawRect(rowRect, tableBorderPaint)
 
                     val cellTextY = y + 15f
-                    canvas.drawText(truncateText(device.model, tableCellPaint, 85f), leftMargin + 6f, cellTextY, tableCellPaint)
-                    canvas.drawText(truncateText(device.brand, tableCellPaint, 60f), leftMargin + 95f, cellTextY, tableCellPaint)
-                    canvas.drawText(truncateText(device.serialNumber, tableCellPaint, 65f), leftMargin + 160f, cellTextY, tableCellPaint)
+                    canvas.drawText(truncateText(device.model, tableCellPaint, 64f), leftMargin + 4f, cellTextY, tableCellPaint)
+                    canvas.drawText(truncateText(device.brand, tableCellPaint, 48f), leftMargin + 72f, cellTextY, tableCellPaint)
+                    canvas.drawText(truncateText(device.serialNumber, tableCellPaint, 50f), leftMargin + 124f, cellTextY, tableCellPaint)
 
-                    val dateStr = if (device.createdAt > 0L) DateUtils.formatDate(device.createdAt) else "-"
-                    canvas.drawText(truncateText(dateStr, tableCellPaint, 95f), leftMargin + 230f, cellTextY, tableCellPaint)
+                    val entradaStr = if (device.createdAt > 0L) DateUtils.formatDate(device.createdAt) else "-"
+                    canvas.drawText(truncateText(entradaStr, tableCellPaint, 76f), leftMargin + 178f, cellTextY, tableCellPaint)
 
-                    canvas.drawText(truncateText(device.description, tableCellPaint, 105f), leftMargin + 330f, cellTextY, tableCellPaint)
+                    val saidaStr = if (device.isDelivered && device.deliveredAt != null && device.deliveredAt > 0L) {
+                        DateUtils.formatDate(device.deliveredAt)
+                    } else {
+                        "Pendente"
+                    }
+                    canvas.drawText(truncateText(saidaStr, tableCellPaint, 84f), leftMargin + 258f, cellTextY, tableCellPaint)
+
+                    canvas.drawText(truncateText(device.description, tableCellPaint, 96f), leftMargin + 346f, cellTextY, tableCellPaint)
 
                     val formattedPrice = CurrencyUtils.formatBrl(device.price)
                     val priceW = tableCellPaint.measureText(formattedPrice)
-                    canvas.drawText(formattedPrice, rightMargin - 6f - priceW, cellTextY, tableCellPaint)
+                    canvas.drawText(formattedPrice, rightMargin - 4f - priceW, cellTextY, tableCellPaint)
 
                     y += rowHeight
                 }

@@ -97,6 +97,18 @@ class MainViewModel(
         }
     }
 
+    fun onToggleDeviceDelivered(device: Device, isDelivered: Boolean) {
+        viewModelScope.launch {
+            val updatedDevice = if (isDelivered) {
+                val timestamp = device.deliveredAt ?: System.currentTimeMillis()
+                device.copy(isDelivered = true, deliveredAt = timestamp)
+            } else {
+                device.copy(isDelivered = false, deliveredAt = null)
+            }
+            repository.updateDevice(updatedDevice)
+        }
+    }
+
     fun getCustomerWithDevicesById(customerId: Long): StateFlow<CustomerWithDevices?> {
         return repository.getCustomerWithDevicesById(customerId)
             .stateIn(
