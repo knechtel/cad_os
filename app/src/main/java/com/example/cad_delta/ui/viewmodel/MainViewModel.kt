@@ -9,6 +9,7 @@ import com.example.cad_delta.AppRepository
 import com.example.cad_delta.Customer
 import com.example.cad_delta.CustomerWithDevices
 import com.example.cad_delta.Device
+import com.example.cad_delta.ui.utils.ExportUtils
 import com.example.cad_delta.ui.utils.PdfGenerator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -44,6 +45,9 @@ class MainViewModel(
 
     private val _pdfMessage = MutableStateFlow<String?>(null)
     val pdfMessage: StateFlow<String?> = _pdfMessage.asStateFlow()
+
+    private val _exportMessage = MutableStateFlow<String?>(null)
+    val exportMessage: StateFlow<String?> = _exportMessage.asStateFlow()
 
     val customersWithDevices: StateFlow<List<CustomerWithDevices>> = combine(
         repository.customersWithDevices,
@@ -241,5 +245,75 @@ class MainViewModel(
 
     fun clearPdfMessage() {
         _pdfMessage.value = null
+    }
+
+    fun exportJson(context: Context) {
+        viewModelScope.launch {
+            try {
+                val data = customersWithDevices.value
+                val uri = ExportUtils.generateJsonFile(context, data)
+                shareFileUri(context, uri, "application/json", "Exportação JSON - Cad Delta")
+                _exportMessage.value = "Arquivo JSON exportado com sucesso!"
+            } catch (e: Exception) {
+                _exportMessage.value = "Erro ao exportar JSON: ${e.message}"
+            }
+        }
+    }
+
+    fun exportCsv(context: Context) {
+        viewModelScope.launch {
+            try {
+                val data = customersWithDevices.value
+                val uris = ExportUtils.generateCsvFiles(context, data)
+                shareMultipleFileUris(context, uris, "text/csv", "Exportação CSV - Cad Delta")
+                _exportMessage.value = "Arquivos CSV exportados com sucesso!"
+            } catch (e: Exception) {
+                _exportMessage.value = "Erro ao exportar CSV: ${e.message}"
+            }
+        }
+    }
+
+    fun exportGeneralPdf(context: Context) {
+        viewModelScope.launch {
+            try {
+                val data = customersWithDevices.value
+                val uri = PdfGenerator.generateGeneralReportPdf(context, data)
+                shareFileUri(context, uri, "application/pdf", "Relatório Geral PDF - Cad Delta")
+                _exportMessage.value = "Relatório PDF Geral gerado com sucesso!"
+            } catch (e: Exception) {
+                _exportMessage.value = "Erro ao gerar PDF Geral: ${e.message}"
+            }
+        }
+    }
+
+    fun shareFileUri(context: Context, uri: Uri, mimeType: String, subject: String) {
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = mimeType
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_SUBJECT, subject)
+            putExtra(Intent.EXTRA_TEXT, "Segue em anexo o arquivo exportado do Cad Delta.")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        val chooser = Intent.createChooser(intent, "Compartilhar Exportação")
+        chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(chooser)
+    }
+
+    fun shareMultipleFileUris(context: Context, uris: List<Uri>, mimeType: String, subject: String) {
+        val uriList = ArrayList(uris)
+        val intent = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+            type = mimeType
+            putParcelableArrayListExtra(Intent.EXTRA_STREAM, uriList)
+            putExtra(Intent.EXTRA_SUBJECT, subject)
+            putExtra(Intent.EXTRA_TEXT, "Segue em anexo os arquivos exportados do Cad Delta.")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        val chooser = Intent.createChooser(intent, "Compartilhar Exportações")
+        chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(chooser)
+    }
+
+    fun clearExportMessage() {
+        _exportMessage.value = null
     }
 }

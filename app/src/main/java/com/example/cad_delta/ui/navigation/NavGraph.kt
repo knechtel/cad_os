@@ -13,6 +13,7 @@ import com.example.cad_delta.ui.screens.AddEditDeviceScreen
 import com.example.cad_delta.ui.screens.CustomerDetailScreen
 import com.example.cad_delta.ui.screens.CustomerListScreen
 import com.example.cad_delta.ui.screens.DeliveredCustomerListScreen
+import com.example.cad_delta.ui.screens.ExportDataScreen
 import com.example.cad_delta.ui.viewmodel.CustomerFormViewModel
 import com.example.cad_delta.ui.viewmodel.DeviceFormViewModel
 import com.example.cad_delta.ui.viewmodel.MainViewModel
@@ -20,6 +21,7 @@ import com.example.cad_delta.ui.viewmodel.MainViewModel
 object NavRoutes {
     const val CUSTOMER_LIST = "customer_list"
     const val DELIVERED_CUSTOMER_LIST = "delivered_customer_list"
+    const val EXPORT_DATA = "export_data"
     const val ADD_EDIT_CUSTOMER = "add_edit_customer/{customerId}"
     const val CUSTOMER_DETAIL = "customer_detail/{customerId}"
     const val ADD_EDIT_DEVICE = "add_edit_device/{customerId}/{deviceId}"
@@ -56,6 +58,9 @@ fun NavGraph(
                     mainViewModel.clearDateFilter()
                     mainViewModel.clearDeliveryDateFilter()
                     navController.navigate(NavRoutes.DELIVERED_CUSTOMER_LIST)
+                },
+                onNavigateToExportData = {
+                    navController.navigate(NavRoutes.EXPORT_DATA)
                 }
             )
         }
@@ -72,7 +77,17 @@ fun NavGraph(
                     mainViewModel.clearOsFilter()
                     mainViewModel.clearDateFilter()
                     navController.navigate(NavRoutes.CUSTOMER_LIST)
+                },
+                onNavigateToExportData = {
+                    navController.navigate(NavRoutes.EXPORT_DATA)
                 }
+            )
+        }
+
+        composable(NavRoutes.EXPORT_DATA) {
+            ExportDataScreen(
+                viewModel = mainViewModel,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

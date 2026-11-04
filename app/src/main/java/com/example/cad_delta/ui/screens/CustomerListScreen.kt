@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.ConfirmationNumber
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.EventAvailable
+import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
@@ -81,6 +82,7 @@ fun CustomerListScreen(
     onNavigateToAddCustomer: () -> Unit,
     onNavigateToCustomerDetail: (Long) -> Unit,
     onNavigateToDeliveryList: () -> Unit = {},
+    onNavigateToExportData: () -> Unit = {},
     deliveryOnly: Boolean = false
 ) {
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -99,6 +101,7 @@ fun CustomerListScreen(
         customerToDelete = customerToDelete,
         deliveryOnly = deliveryOnly,
         onNavigateToDeliveryList = onNavigateToDeliveryList,
+        onNavigateToExportData = onNavigateToExportData,
         onSearchQueryChange = viewModel::onSearchQueryChange,
         onOsFilterChange = viewModel::onOsFilterChange,
         onClearOsFilter = viewModel::clearOsFilter,
@@ -120,13 +123,15 @@ fun DeliveredCustomerListScreen(
     viewModel: MainViewModel,
     onNavigateToAddCustomer: () -> Unit,
     onNavigateToCustomerDetail: (Long) -> Unit,
-    onNavigateToEntryList: () -> Unit
+    onNavigateToEntryList: () -> Unit,
+    onNavigateToExportData: () -> Unit = {}
 ) {
     CustomerListScreen(
         viewModel = viewModel,
         onNavigateToAddCustomer = onNavigateToAddCustomer,
         onNavigateToCustomerDetail = onNavigateToCustomerDetail,
         onNavigateToDeliveryList = onNavigateToEntryList,
+        onNavigateToExportData = onNavigateToExportData,
         deliveryOnly = true
     )
 }
@@ -142,6 +147,7 @@ fun CustomerListContent(
     customerToDelete: Customer?,
     deliveryOnly: Boolean,
     onNavigateToDeliveryList: () -> Unit,
+    onNavigateToExportData: () -> Unit = {},
     onSearchQueryChange: (String) -> Unit,
     onOsFilterChange: (String) -> Unit,
     onClearOsFilter: () -> Unit,
@@ -226,6 +232,12 @@ fun CustomerListContent(
                 actions = {
                     TextButton(onClick = onNavigateToDeliveryList) {
                         Text(if (deliveryOnly) "Entrada e ID" else "Entregues")
+                    }
+                    IconButton(onClick = onNavigateToExportData) {
+                        Icon(
+                            imageVector = Icons.Default.FileUpload,
+                            contentDescription = "Exportar Dados"
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
