@@ -3,6 +3,7 @@ package com.example.cad_delta.ui.utils
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.BitmapFactory
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
@@ -130,18 +131,23 @@ object PdfGenerator {
                 typeface = Typeface.DEFAULT
             }
 
-            var y = 45f
+            var y = 105f
 
             // --- Header ---
-            canvas.drawText("Relatório de Cliente e Aparelhos", leftMargin, y, titlePaint)
+            // Logo oficial obtido das diretrizes de marca da Delta:
+            // https://news.delta.com/delta-air-lines-logos-and-brand-guidelines
+            val deltaLogo = BitmapFactory.decodeResource(context.resources, com.example.cad_delta.R.drawable.delta_logo)
+            val logoBounds = RectF(leftMargin, 29f, leftMargin + 112f, 47f)
+            canvas.drawBitmap(deltaLogo, null, logoBounds, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
+            canvas.drawText("Rua Fernandes Bastos, 1978", leftMargin + 128f, 35f, subtitlePaint)
+            canvas.drawText("Telefone: 51-9350-1980", leftMargin + 128f, 50f, subtitlePaint)
+            canvas.drawText("Relatório de Cliente e Aparelhos", leftMargin, 76f, titlePaint)
             val currentDate = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
             val dateText = "Data: $currentDate"
             val dateWidth = subtitlePaint.measureText(dateText)
-            canvas.drawText(dateText, rightMargin - dateWidth, y, subtitlePaint)
+            canvas.drawText(dateText, rightMargin - dateWidth, 76f, subtitlePaint)
 
-            y += 15f
-            canvas.drawLine(leftMargin, y, rightMargin, y, linePaint)
-            y += 20f
+            canvas.drawLine(leftMargin, 86f, rightMargin, 86f, linePaint)
 
             // --- Section 1: Customer Details ---
             canvas.drawText("1. Dados do Cliente - Nº da OS: #${customer.id}", leftMargin, y, sectionTitlePaint)
