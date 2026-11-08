@@ -12,6 +12,7 @@ import com.example.cad_delta.ui.screens.AddEditCustomerScreen
 import com.example.cad_delta.ui.screens.AddEditDeviceScreen
 import com.example.cad_delta.ui.screens.CustomerDetailScreen
 import com.example.cad_delta.ui.screens.CustomerListScreen
+import com.example.cad_delta.ui.screens.DailyRevenueScreen
 import com.example.cad_delta.ui.screens.DeliveredCustomerListScreen
 import com.example.cad_delta.ui.screens.ExportDataScreen
 import com.example.cad_delta.ui.viewmodel.CustomerFormViewModel
@@ -22,6 +23,7 @@ object NavRoutes {
     const val CUSTOMER_LIST = "customer_list"
     const val DELIVERED_CUSTOMER_LIST = "delivered_customer_list"
     const val EXPORT_DATA = "export_data"
+    const val DAILY_REVENUE = "daily_revenue"
     const val ADD_EDIT_CUSTOMER = "add_edit_customer/{customerId}"
     const val CUSTOMER_DETAIL = "customer_detail/{customerId}"
     const val ADD_EDIT_DEVICE = "add_edit_device/{customerId}/{deviceId}"
@@ -61,6 +63,9 @@ fun NavGraph(
                 },
                 onNavigateToExportData = {
                     navController.navigate(NavRoutes.EXPORT_DATA)
+                },
+                onNavigateToDailyRevenue = {
+                    navController.navigate(NavRoutes.DAILY_REVENUE)
                 }
             )
         }
@@ -80,6 +85,9 @@ fun NavGraph(
                 },
                 onNavigateToExportData = {
                     navController.navigate(NavRoutes.EXPORT_DATA)
+                },
+                onNavigateToDailyRevenue = {
+                    navController.navigate(NavRoutes.DAILY_REVENUE)
                 }
             )
         }
@@ -88,6 +96,16 @@ fun NavGraph(
             ExportDataScreen(
                 viewModel = mainViewModel,
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(NavRoutes.DAILY_REVENUE) {
+            DailyRevenueScreen(
+                viewModel = mainViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToCustomerDetail = { customerId ->
+                    navController.navigate(NavRoutes.customerDetail(customerId))
+                }
             )
         }
 

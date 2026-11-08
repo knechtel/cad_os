@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import com.example.cad_delta.ui.utils.DateUtils
@@ -36,6 +37,9 @@ class MainViewModel(
 
     private val _deliveryDateFilter = MutableStateFlow("")
     val deliveryDateFilter: StateFlow<String> = _deliveryDateFilter.asStateFlow()
+
+    private val _revenueDate = MutableStateFlow(DateUtils.getCurrentDateString())
+    val revenueDate: StateFlow<String> = _revenueDate.asStateFlow()
 
     private val _customerToDelete = MutableStateFlow<Customer?>(null)
     val customerToDelete: StateFlow<Customer?> = _customerToDelete.asStateFlow()
@@ -120,6 +124,46 @@ class MainViewModel(
         initialValue = emptyList()
     )
 
+    val dailyRevenueCustomers: StateFlow<List<CustomerWithDevices>> = combine(
+        repository.customersWithDevices,
+        _revenueDate
+    ) { list, targetDateVal ->
+        if (targetDateVal.isBlank()) {
+            emptyList()
+        } else {
+            val targetDate = targetDateVal.trim()
+            list.mapNotNull { item ->
+                val matchingDevices = item.devices.filter { device ->
+                    if (device.isDelivered && device.deliveredAt != null) {
+                        val deliveredDateStr = DateUtils.formatDateOnly(device.deliveredAt)
+                        deliveredDateStr == targetDate || deliveredDateStr.contains(targetDate)
+                    } else {
+                        false
+                    }
+                }
+                if (matchingDevices.isNotEmpty()) {
+                    CustomerWithDevices(item.customer, matchingDevices)
+                } else {
+                    null
+                }
+            }
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    val totalDailyRevenue: StateFlow<Double> = dailyRevenueCustomers.map { list ->
+        list.sumOf { customerWithDevices ->
+            customerWithDevices.devices.sumOf { device -> device.price }
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 0.0
+    )
+
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
     }
@@ -146,6 +190,14 @@ class MainViewModel(
 
     fun clearDeliveryDateFilter() {
         _deliveryDateFilter.value = ""
+    }
+
+    fun onRevenueDateChange(date: String) {
+        _revenueDate.value = date
+    }
+
+    fun clearRevenueDate() {
+        _revenueDate.value = DateUtils.getCurrentDateString()
     }
 
     fun clearAllFilters() {

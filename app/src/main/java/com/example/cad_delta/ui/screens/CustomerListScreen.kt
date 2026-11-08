@@ -83,6 +83,7 @@ fun CustomerListScreen(
     onNavigateToCustomerDetail: (Long) -> Unit,
     onNavigateToDeliveryList: () -> Unit = {},
     onNavigateToExportData: () -> Unit = {},
+    onNavigateToDailyRevenue: () -> Unit = {},
     deliveryOnly: Boolean = false
 ) {
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -102,6 +103,7 @@ fun CustomerListScreen(
         deliveryOnly = deliveryOnly,
         onNavigateToDeliveryList = onNavigateToDeliveryList,
         onNavigateToExportData = onNavigateToExportData,
+        onNavigateToDailyRevenue = onNavigateToDailyRevenue,
         onSearchQueryChange = viewModel::onSearchQueryChange,
         onOsFilterChange = viewModel::onOsFilterChange,
         onClearOsFilter = viewModel::clearOsFilter,
@@ -124,7 +126,8 @@ fun DeliveredCustomerListScreen(
     onNavigateToAddCustomer: () -> Unit,
     onNavigateToCustomerDetail: (Long) -> Unit,
     onNavigateToEntryList: () -> Unit,
-    onNavigateToExportData: () -> Unit = {}
+    onNavigateToExportData: () -> Unit = {},
+    onNavigateToDailyRevenue: () -> Unit = {}
 ) {
     CustomerListScreen(
         viewModel = viewModel,
@@ -132,6 +135,7 @@ fun DeliveredCustomerListScreen(
         onNavigateToCustomerDetail = onNavigateToCustomerDetail,
         onNavigateToDeliveryList = onNavigateToEntryList,
         onNavigateToExportData = onNavigateToExportData,
+        onNavigateToDailyRevenue = onNavigateToDailyRevenue,
         deliveryOnly = true
     )
 }
@@ -148,6 +152,7 @@ fun CustomerListContent(
     deliveryOnly: Boolean,
     onNavigateToDeliveryList: () -> Unit,
     onNavigateToExportData: () -> Unit = {},
+    onNavigateToDailyRevenue: () -> Unit = {},
     onSearchQueryChange: (String) -> Unit,
     onOsFilterChange: (String) -> Unit,
     onClearOsFilter: () -> Unit,
@@ -230,6 +235,9 @@ fun CustomerListContent(
             CenterAlignedTopAppBar(
                 title = { Text(if (deliveryOnly) "Clientes Entregues" else "Lista de Clientes", fontWeight = FontWeight.Bold) },
                 actions = {
+                    TextButton(onClick = onNavigateToDailyRevenue) {
+                        Text("Faturamento")
+                    }
                     TextButton(onClick = onNavigateToDeliveryList) {
                         Text(if (deliveryOnly) "Entrada e ID" else "Entregues")
                     }

@@ -5,6 +5,11 @@ import java.util.Date
 import java.util.Locale
 
 object DateUtils {
+    fun getCurrentDateString(): String {
+        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        return sdf.format(Date())
+    }
+
     fun formatDate(timestamp: Long?): String {
         if (timestamp == null || timestamp <= 0L) return "-"
         val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())

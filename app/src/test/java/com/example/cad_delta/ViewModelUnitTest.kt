@@ -268,6 +268,77 @@ class ViewModelUnitTest {
         assertEquals(3, resetList.size)
     }
 
+    @Test
+    fun testGetCurrentDateString() {
+        val currentDate = com.example.cad_delta.ui.utils.DateUtils.getCurrentDateString()
+        assertNotNull(currentDate)
+        org.junit.Assert.assertTrue(currentDate.matches(Regex("\\d{2}/\\d{2}/\\d{4}")))
+    }
+
+    @Test
+    fun testDailyRevenueStateManagement() {
+        val fakeRepo = createFakeRepository()
+        val viewModel = com.example.cad_delta.ui.viewmodel.MainViewModel(fakeRepo)
+
+        val todayStr = com.example.cad_delta.ui.utils.DateUtils.getCurrentDateString()
+        assertEquals(todayStr, viewModel.revenueDate.value)
+
+        viewModel.onRevenueDateChange("15/05/2025")
+        assertEquals("15/05/2025", viewModel.revenueDate.value)
+
+        viewModel.clearRevenueDate()
+        assertEquals(todayStr, viewModel.revenueDate.value)
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun testDailyRevenueCalculationLogic() = kotlinx.coroutines.test.runTest {
+        val timestamp1 = 1700000000000L
+        val dateStr1 = com.example.cad_delta.ui.utils.DateUtils.formatDateOnly(timestamp1)
+
+        val timestamp2 = 1600000000000L
+        val dateStr2 = com.example.cad_delta.ui.utils.DateUtils.formatDateOnly(timestamp2)
+
+        val devicesMap = mapOf(
+            1L to listOf(
+                Device(10L, 1L, "Phone A1", "Brand", "SN1", "Desc", 150.0, isDelivered = true, deliveredAt = timestamp1),
+                Device(11L, 1L, "Phone A2", "Brand", "SN2", "Desc", 250.0, isDelivered = true, deliveredAt = timestamp1)
+            ),
+            42L to listOf(
+                Device(20L, 42L, "Phone B1", "Brand", "SN3", "Desc", 500.0, isDelivered = true, deliveredAt = timestamp2),
+                Device(21L, 42L, "Phone B2", "Brand", "SN4", "Desc", 300.0, isDelivered = false, deliveredAt = null)
+            )
+        )
+
+        val fakeRepo = createFakeRepositoryWithDevices(devicesMap)
+        val viewModel = com.example.cad_delta.ui.viewmodel.MainViewModel(fakeRepo)
+
+        // Select dateStr1
+        viewModel.onRevenueDateChange(dateStr1)
+        val customersDate1 = viewModel.dailyRevenueCustomers.first { list -> list.isNotEmpty() }
+        assertEquals(1, customersDate1.size)
+        assertEquals(1L, customersDate1.first().customer.id)
+        assertEquals(2, customersDate1.first().devices.size)
+
+        val totalRev1 = viewModel.totalDailyRevenue.first { it > 0.0 }
+        assertEquals(400.0, totalRev1, 0.001)
+
+        // Select dateStr2
+        viewModel.onRevenueDateChange(dateStr2)
+        val customersDate2 = viewModel.dailyRevenueCustomers.first { list -> list.isNotEmpty() && list.first().customer.id == 42L }
+        assertEquals(1, customersDate2.size)
+        assertEquals(42L, customersDate2.first().customer.id)
+        assertEquals(1, customersDate2.first().devices.size)
+
+        val totalRev2 = viewModel.totalDailyRevenue.first { it == 500.0 }
+        assertEquals(500.0, totalRev2, 0.001)
+
+        // Select non-existent date
+        viewModel.onRevenueDateChange("01/01/1990")
+        val customersEmpty = viewModel.dailyRevenueCustomers.first { list -> list.isEmpty() }
+        assertEquals(0, customersEmpty.size)
+    }
+
     private fun createFakeRepositoryWithDevices(devicesMap: Map<Long, List<Device>>): AppRepository {
         val fakeCustomerDao = object : CustomerDao {
             override suspend fun insertCustomer(customer: Customer) = 1L
