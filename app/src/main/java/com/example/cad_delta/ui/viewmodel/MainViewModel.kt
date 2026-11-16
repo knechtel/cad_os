@@ -299,6 +299,10 @@ class MainViewModel(
         _pdfMessage.value = null
     }
 
+    fun isCustomerLocked(customerWithDevices: CustomerWithDevices?): Boolean {
+        return com.example.cad_delta.isCustomerLocked(customerWithDevices)
+    }
+
     fun exportJson(context: Context) {
         viewModelScope.launch {
             try {

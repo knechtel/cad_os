@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PictureAsPdf
@@ -126,6 +127,8 @@ fun CustomerDetailContent(
     onGeneratePdfClick: () -> Unit,
     onToggleDeviceDelivered: (Device, Boolean) -> Unit = { _, _ -> }
 ) {
+    val isLocked = customerWithDevices?.isLocked == true
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -150,11 +153,13 @@ fun CustomerDetailContent(
                             contentDescription = "Gerar PDF"
                         )
                     }
-                    IconButton(onClick = onEditCustomerClick) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Editar Cliente"
-                        )
+                    if (!isLocked) {
+                        IconButton(onClick = onEditCustomerClick) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Editar Cliente"
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -166,13 +171,15 @@ fun CustomerDetailContent(
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onAddDeviceClick,
-                icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("Novo Dispositivo") },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            )
+            if (!isLocked) {
+                ExtendedFloatingActionButton(
+                    onClick = onAddDeviceClick,
+                    icon = { Icon(Icons.Default.Add, contentDescription = null) },
+                    text = { Text("Novo Dispositivo") },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
@@ -200,9 +207,38 @@ fun CustomerDetailContent(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                if (isLocked) {
+                    item {
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                                    modifier = Modifier.padding(end = 8.dp)
+                                )
+                                Text(
+                                    text = "Este cliente possui aparelho(s) entregue(s) com data de saída. Edição de cliente e aparelhos bloqueada.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
+                    }
+                }
+
                 item {
                     CustomerHeaderCard(
                         customer = customer,
+                        isLocked = isLocked,
                         onEditClick = onEditCustomerClick,
                         onPdfClick = onGeneratePdfClick
                     )
@@ -271,6 +307,7 @@ fun CustomerDetailContent(
                     items(devices, key = { it.id }) { device ->
                         DeviceItemCard(
                             device = device,
+                            isCustomerLocked = isLocked,
                             onEditClick = { onEditDeviceClick(device.id) },
                             onDeleteClick = { onDeleteDeviceClick(device) },
                             onToggleDelivered = { isDelivered -> onToggleDeviceDelivered(device, isDelivered) }
@@ -305,6 +342,7 @@ fun CustomerDetailContent(
 @Composable
 fun CustomerHeaderCard(
     customer: Customer,
+    isLocked: Boolean = false,
     onEditClick: () -> Unit,
     onPdfClick: () -> Unit
 ) {
@@ -417,13 +455,15 @@ fun CustomerHeaderCard(
                     )
                     Text("Gerar PDF")
                 }
-                Button(onClick = onEditClick) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = null,
-                        modifier = Modifier.padding(end = 6.dp)
-                    )
-                    Text("Editar Dados")
+                if (!isLocked) {
+                    Button(onClick = onEditClick) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 6.dp)
+                        )
+                        Text("Editar Dados")
+                    }
                 }
             }
         }
@@ -433,6 +473,7 @@ fun CustomerHeaderCard(
 @Composable
 fun DeviceItemCard(
     device: Device,
+    isCustomerLocked: Boolean = false,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onToggleDelivered: (Boolean) -> Unit = {}
@@ -494,7 +535,7 @@ fun DeviceItemCard(
                 }
 
                 Row {
-                    if (!device.isDelivered) {
+                    if (!isCustomerLocked) {
                         IconButton(onClick = onEditClick) {
                             Icon(
                                 imageVector = Icons.Default.Edit,

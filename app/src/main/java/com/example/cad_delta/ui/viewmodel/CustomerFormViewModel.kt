@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cad_delta.AppRepository
 import com.example.cad_delta.Customer
+import com.example.cad_delta.CustomerWithDevices
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,6 +17,7 @@ data class CustomerFormState(
     val phone: String = "",
     val cpf: String = "",
     val address: String = "",
+    val isLocked: Boolean = false,
     val nameError: String? = null,
     val phoneError: String? = null,
     val cpfError: String? = null,
@@ -31,6 +33,10 @@ class CustomerFormViewModel(
     private val _uiState = MutableStateFlow(CustomerFormState())
     val uiState: StateFlow<CustomerFormState> = _uiState.asStateFlow()
 
+    fun isCustomerLocked(customerWithDevices: CustomerWithDevices?): Boolean {
+        return com.example.cad_delta.isCustomerLocked(customerWithDevices)
+    }
+
     fun loadCustomer(customerId: Long) {
         if (customerId <= 0) {
             _uiState.value = CustomerFormState()
@@ -38,14 +44,17 @@ class CustomerFormViewModel(
         }
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
-            val customer = repository.getCustomerById(customerId).firstOrNull()
-            if (customer != null) {
+            val customerWithDevices = repository.getCustomerWithDevicesById(customerId).firstOrNull()
+            if (customerWithDevices != null) {
+                val locked = isCustomerLocked(customerWithDevices)
+                val customer = customerWithDevices.customer
                 _uiState.value = CustomerFormState(
                     id = customer.id,
                     name = customer.name,
                     phone = customer.phone,
                     cpf = customer.cpf,
                     address = customer.address,
+                    isLocked = locked,
                     isLoading = false
                 )
             } else {
@@ -84,6 +93,9 @@ class CustomerFormViewModel(
 
     fun saveCustomer(onSuccess: () -> Unit) {
         val currentState = _uiState.value
+        if (currentState.isLocked) {
+            return
+        }
 
         var hasError = false
         val nameErr = if (currentState.name.isBlank()) {

@@ -3,6 +3,7 @@ package com.example.cad_delta.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cad_delta.AppRepository
+import com.example.cad_delta.CustomerWithDevices
 import com.example.cad_delta.Device
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,6 +23,7 @@ data class DeviceFormState(
     val isDelivered: Boolean = false,
     val deliveredAt: Long? = null,
     val isAlreadyDeliveredOnLoad: Boolean = false,
+    val isLocked: Boolean = false,
     val modelError: String? = null,
     val brandError: String? = null,
     val serialError: String? = null,
@@ -37,13 +39,38 @@ class DeviceFormViewModel(
     private val _uiState = MutableStateFlow(DeviceFormState())
     val uiState: StateFlow<DeviceFormState> = _uiState.asStateFlow()
 
+    fun isCustomerLocked(customerWithDevices: CustomerWithDevices?): Boolean {
+        return com.example.cad_delta.isCustomerLocked(customerWithDevices)
+    }
+
     fun loadDevice(customerId: Long, deviceId: Long) {
-        if (deviceId <= 0) {
-            _uiState.value = DeviceFormState(customerId = customerId)
-            return
-        }
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, customerId = customerId)
+
+            val targetCustId = if (customerId > 0) {
+                customerId
+            } else if (deviceId > 0) {
+                val existingDevice = repository.getDeviceById(deviceId).firstOrNull()
+                existingDevice?.customerId ?: 0L
+            } else {
+                0L
+            }
+
+            val customerWithDevices = if (targetCustId > 0) {
+                repository.getCustomerWithDevicesById(targetCustId).firstOrNull()
+            } else null
+
+            val locked = isCustomerLocked(customerWithDevices)
+
+            if (deviceId <= 0) {
+                _uiState.value = DeviceFormState(
+                    customerId = targetCustId,
+                    isLocked = locked,
+                    isLoading = false
+                )
+                return@launch
+            }
+
             val device = repository.getDeviceById(deviceId).firstOrNull()
             if (device != null) {
                 _uiState.value = DeviceFormState(
@@ -58,10 +85,15 @@ class DeviceFormViewModel(
                     isDelivered = device.isDelivered,
                     deliveredAt = device.deliveredAt,
                     isAlreadyDeliveredOnLoad = device.isDelivered,
+                    isLocked = locked,
                     isLoading = false
                 )
             } else {
-                _uiState.value = DeviceFormState(customerId = customerId, isLoading = false)
+                _uiState.value = DeviceFormState(
+                    customerId = targetCustId,
+                    isLocked = locked,
+                    isLoading = false
+                )
             }
         }
     }
@@ -113,6 +145,9 @@ class DeviceFormViewModel(
 
     fun saveDevice(customerId: Long, onSuccess: () -> Unit) {
         val currentState = _uiState.value
+        if (currentState.isLocked || currentState.isAlreadyDeliveredOnLoad) {
+            return
+        }
 
         var hasError = false
         val modelErr = if (currentState.model.isBlank()) {

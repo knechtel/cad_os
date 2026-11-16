@@ -3,6 +3,7 @@ package com.example.cad_delta.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,10 +17,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -120,6 +124,32 @@ fun AddEditCustomerContent(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                if (uiState.isLocked) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                            Text(
+                                text = "Este cliente possui aparelho(s) entregue(s) com data de saída e não pode mais ser editado.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                }
+
                 Text(
                     text = "Preencha os dados do cliente abaixo:",
                     style = MaterialTheme.typography.titleMedium,
@@ -136,6 +166,7 @@ fun AddEditCustomerContent(
                     },
                     isError = uiState.nameError != null,
                     supportingText = uiState.nameError?.let { { Text(it) } },
+                    enabled = !uiState.isLocked,
                     singleLine = true
                 )
 
@@ -150,6 +181,7 @@ fun AddEditCustomerContent(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     isError = uiState.phoneError != null,
                     supportingText = uiState.phoneError?.let { { Text(it) } },
+                    enabled = !uiState.isLocked,
                     singleLine = true
                 )
 
@@ -164,6 +196,7 @@ fun AddEditCustomerContent(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     isError = uiState.cpfError != null,
                     supportingText = uiState.cpfError?.let { { Text(it) } },
+                    enabled = !uiState.isLocked,
                     singleLine = true
                 )
 
@@ -176,7 +209,8 @@ fun AddEditCustomerContent(
                         Icon(imageVector = Icons.Default.LocationOn, contentDescription = null)
                     },
                     isError = uiState.addressError != null,
-                    supportingText = uiState.addressError?.let { { Text(it) } }
+                    supportingText = uiState.addressError?.let { { Text(it) } },
+                    enabled = !uiState.isLocked
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -186,7 +220,7 @@ fun AddEditCustomerContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
-                    enabled = !uiState.isSaving
+                    enabled = !uiState.isLocked && !uiState.isSaving
                 ) {
                     if (uiState.isSaving) {
                         CircularProgressIndicator(

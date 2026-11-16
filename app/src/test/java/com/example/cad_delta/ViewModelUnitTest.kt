@@ -339,6 +339,245 @@ class ViewModelUnitTest {
         assertEquals(0, customersEmpty.size)
     }
 
+    @Test
+    fun testIsCustomerLockedHelper() {
+        val customerNoDevices = CustomerWithDevices(
+            customer = Customer(1L, "Zero Devices", "000", "000", "Addr 0"),
+            devices = emptyList()
+        )
+        org.junit.Assert.assertFalse(isCustomerLocked(customerNoDevices))
+        org.junit.Assert.assertFalse(customerNoDevices.isLocked)
+        org.junit.Assert.assertFalse(isCustomerLocked(emptyList<Device>()))
+        org.junit.Assert.assertFalse(isCustomerLocked(null as CustomerWithDevices?))
+
+        val unlockedCustomer = CustomerWithDevices(
+            customer = Customer(1L, "Alice", "111", "000", "Addr 1"),
+            devices = listOf(
+                Device(10L, 1L, "Phone A", "Brand", "SN1", "Desc", 100.0, isDelivered = false, deliveredAt = null)
+            )
+        )
+        org.junit.Assert.assertFalse(isCustomerLocked(unlockedCustomer))
+        org.junit.Assert.assertFalse(unlockedCustomer.isLocked)
+        org.junit.Assert.assertFalse(isCustomerLocked(unlockedCustomer.devices))
+
+        val lockedCustomerByDelivered = CustomerWithDevices(
+            customer = Customer(2L, "Bob", "222", "111", "Addr 2"),
+            devices = listOf(
+                Device(20L, 2L, "Phone B", "Brand", "SN2", "Desc", 200.0, isDelivered = true, deliveredAt = System.currentTimeMillis())
+            )
+        )
+        org.junit.Assert.assertTrue(isCustomerLocked(lockedCustomerByDelivered))
+        org.junit.Assert.assertTrue(lockedCustomerByDelivered.isLocked)
+        org.junit.Assert.assertTrue(isCustomerLocked(lockedCustomerByDelivered.devices))
+
+        val lockedCustomerByDeliveredAt = CustomerWithDevices(
+            customer = Customer(3L, "Charlie", "333", "222", "Addr 3"),
+            devices = listOf(
+                Device(30L, 3L, "Phone C", "Brand", "SN3", "Desc", 300.0, isDelivered = false, deliveredAt = System.currentTimeMillis())
+            )
+        )
+        org.junit.Assert.assertTrue(isCustomerLocked(lockedCustomerByDeliveredAt))
+        org.junit.Assert.assertTrue(lockedCustomerByDeliveredAt.isLocked)
+        org.junit.Assert.assertTrue(isCustomerLocked(lockedCustomerByDeliveredAt.devices))
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun testCustomerFormViewModelLocking() = kotlinx.coroutines.test.runTest {
+        var updateCalled = false
+        val lockedCustomerWithDevices = CustomerWithDevices(
+            customer = Customer(1L, "Alice", "111", "000", "Addr 1"),
+            devices = listOf(
+                Device(10L, 1L, "Phone A", "Brand", "SN1", "Desc", 100.0, isDelivered = true, deliveredAt = 1000L)
+            )
+        )
+
+        val fakeCustomerDao = object : CustomerDao {
+            override suspend fun insertCustomer(customer: Customer) = 1L
+            override suspend fun updateCustomer(customer: Customer): Int {
+                updateCalled = true
+                return 1
+            }
+            override suspend fun deleteCustomer(customer: Customer) = 1
+            override fun getAllCustomers() = kotlinx.coroutines.flow.flowOf(emptyList<Customer>())
+            override fun getCustomerById(id: Long) = kotlinx.coroutines.flow.flowOf(lockedCustomerWithDevices.customer)
+            override fun getCustomersWithDevices() = kotlinx.coroutines.flow.flowOf(listOf(lockedCustomerWithDevices))
+            override fun getCustomerWithDevicesById(id: Long) = kotlinx.coroutines.flow.flowOf(lockedCustomerWithDevices)
+        }
+        val fakeDeviceDao = object : DeviceDao {
+            override suspend fun insertDevice(device: Device) = 1L
+            override suspend fun updateDevice(device: Device) = 1
+            override suspend fun deleteDevice(device: Device) = 1
+            override fun getAllDevices() = kotlinx.coroutines.flow.flowOf(emptyList<Device>())
+            override fun getDeviceById(id: Long) = kotlinx.coroutines.flow.flowOf(null)
+            override fun getDevicesByCustomerId(customerId: Long) = kotlinx.coroutines.flow.flowOf(emptyList<Device>())
+        }
+        val repo = AppRepository(fakeCustomerDao, fakeDeviceDao)
+        val viewModel = com.example.cad_delta.ui.viewmodel.CustomerFormViewModel(repo)
+
+        viewModel.loadCustomer(1L)
+        val state = viewModel.uiState.first { it.id == 1L }
+        org.junit.Assert.assertTrue(state.isLocked)
+
+        var successCallback = false
+        viewModel.saveCustomer { successCallback = true }
+        org.junit.Assert.assertFalse(updateCalled)
+        org.junit.Assert.assertFalse(successCallback)
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun testDeviceFormViewModelLocking() = kotlinx.coroutines.test.runTest {
+        var insertDeviceCalled = false
+        var updateDeviceCalled = false
+        val lockedCustomerWithDevices = CustomerWithDevices(
+            customer = Customer(1L, "Alice", "111", "000", "Addr 1"),
+            devices = listOf(
+                Device(10L, 1L, "Phone A", "Brand", "SN1", "Desc", 100.0, isDelivered = true, deliveredAt = 1000L)
+            )
+        )
+
+        val fakeCustomerDao = object : CustomerDao {
+            override suspend fun insertCustomer(customer: Customer) = 1L
+            override suspend fun updateCustomer(customer: Customer) = 1
+            override suspend fun deleteCustomer(customer: Customer) = 1
+            override fun getAllCustomers() = kotlinx.coroutines.flow.flowOf(emptyList<Customer>())
+            override fun getCustomerById(id: Long) = kotlinx.coroutines.flow.flowOf(lockedCustomerWithDevices.customer)
+            override fun getCustomersWithDevices() = kotlinx.coroutines.flow.flowOf(listOf(lockedCustomerWithDevices))
+            override fun getCustomerWithDevicesById(id: Long) = kotlinx.coroutines.flow.flowOf(lockedCustomerWithDevices)
+        }
+        val fakeDeviceDao = object : DeviceDao {
+            override suspend fun insertDevice(device: Device): Long {
+                insertDeviceCalled = true
+                return 1L
+            }
+            override suspend fun updateDevice(device: Device): Int {
+                updateDeviceCalled = true
+                return 1
+            }
+            override suspend fun deleteDevice(device: Device) = 1
+            override fun getAllDevices() = kotlinx.coroutines.flow.flowOf(emptyList<Device>())
+            override fun getDeviceById(id: Long) = kotlinx.coroutines.flow.flowOf(lockedCustomerWithDevices.devices.first())
+            override fun getDevicesByCustomerId(customerId: Long) = kotlinx.coroutines.flow.flowOf(lockedCustomerWithDevices.devices)
+        }
+        val repo = AppRepository(fakeCustomerDao, fakeDeviceDao)
+        val viewModel = com.example.cad_delta.ui.viewmodel.DeviceFormViewModel(repo)
+
+        viewModel.loadDevice(1L, -1L)
+        val state = viewModel.uiState.first { it.customerId == 1L }
+        org.junit.Assert.assertTrue(state.isLocked)
+
+        viewModel.onModelChange("New Phone")
+        viewModel.onBrandChange("Brand")
+        viewModel.onSerialNumberChange("SN999")
+        viewModel.onPriceChange("100")
+
+        var successCallback = false
+        viewModel.saveDevice(1L) { successCallback = true }
+        org.junit.Assert.assertFalse(insertDeviceCalled)
+        org.junit.Assert.assertFalse(updateDeviceCalled)
+        org.junit.Assert.assertFalse(successCallback)
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun testCustomerFormViewModelUnlockedEditing() = kotlinx.coroutines.test.runTest {
+        var updateCalled = false
+        val unlockedCustomerWithDevices = CustomerWithDevices(
+            customer = Customer(1L, "Alice", "111", "000", "Addr 1"),
+            devices = listOf(
+                Device(10L, 1L, "Phone A", "Brand", "SN1", "Desc", 100.0, isDelivered = false, deliveredAt = null)
+            )
+        )
+
+        val fakeCustomerDao = object : CustomerDao {
+            override suspend fun insertCustomer(customer: Customer) = 1L
+            override suspend fun updateCustomer(customer: Customer): Int {
+                updateCalled = true
+                return 1
+            }
+            override suspend fun deleteCustomer(customer: Customer) = 1
+            override fun getAllCustomers() = kotlinx.coroutines.flow.flowOf(emptyList<Customer>())
+            override fun getCustomerById(id: Long) = kotlinx.coroutines.flow.flowOf(unlockedCustomerWithDevices.customer)
+            override fun getCustomersWithDevices() = kotlinx.coroutines.flow.flowOf(listOf(unlockedCustomerWithDevices))
+            override fun getCustomerWithDevicesById(id: Long) = kotlinx.coroutines.flow.flowOf(unlockedCustomerWithDevices)
+        }
+        val fakeDeviceDao = object : DeviceDao {
+            override suspend fun insertDevice(device: Device) = 1L
+            override suspend fun updateDevice(device: Device) = 1
+            override suspend fun deleteDevice(device: Device) = 1
+            override fun getAllDevices() = kotlinx.coroutines.flow.flowOf(emptyList<Device>())
+            override fun getDeviceById(id: Long) = kotlinx.coroutines.flow.flowOf(null)
+            override fun getDevicesByCustomerId(customerId: Long) = kotlinx.coroutines.flow.flowOf(emptyList<Device>())
+        }
+        val repo = AppRepository(fakeCustomerDao, fakeDeviceDao)
+        val viewModel = com.example.cad_delta.ui.viewmodel.CustomerFormViewModel(repo)
+
+        viewModel.loadCustomer(1L)
+        val state = viewModel.uiState.first { it.id == 1L }
+        org.junit.Assert.assertFalse(state.isLocked)
+
+        viewModel.onNameChange("Alice Updated")
+        viewModel.onPhoneChange("999")
+        viewModel.onCpfChange("111")
+        viewModel.onAddressChange("Addr 2")
+
+        var successCallback = false
+        viewModel.saveCustomer { successCallback = true }
+        org.junit.Assert.assertTrue(updateCalled)
+        org.junit.Assert.assertTrue(successCallback)
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun testDeviceFormViewModelUnlockedEditing() = kotlinx.coroutines.test.runTest {
+        var updateDeviceCalled = false
+        val unlockedCustomerWithDevices = CustomerWithDevices(
+            customer = Customer(1L, "Alice", "111", "000", "Addr 1"),
+            devices = listOf(
+                Device(10L, 1L, "Phone A", "Brand", "SN1", "Desc", 100.0, isDelivered = false, deliveredAt = null)
+            )
+        )
+
+        val fakeCustomerDao = object : CustomerDao {
+            override suspend fun insertCustomer(customer: Customer) = 1L
+            override suspend fun updateCustomer(customer: Customer) = 1
+            override suspend fun deleteCustomer(customer: Customer) = 1
+            override fun getAllCustomers() = kotlinx.coroutines.flow.flowOf(emptyList<Customer>())
+            override fun getCustomerById(id: Long) = kotlinx.coroutines.flow.flowOf(unlockedCustomerWithDevices.customer)
+            override fun getCustomersWithDevices() = kotlinx.coroutines.flow.flowOf(listOf(unlockedCustomerWithDevices))
+            override fun getCustomerWithDevicesById(id: Long) = kotlinx.coroutines.flow.flowOf(unlockedCustomerWithDevices)
+        }
+        val fakeDeviceDao = object : DeviceDao {
+            override suspend fun insertDevice(device: Device) = 1L
+            override suspend fun updateDevice(device: Device): Int {
+                updateDeviceCalled = true
+                return 1
+            }
+            override suspend fun deleteDevice(device: Device) = 1
+            override fun getAllDevices() = kotlinx.coroutines.flow.flowOf(emptyList<Device>())
+            override fun getDeviceById(id: Long) = kotlinx.coroutines.flow.flowOf(unlockedCustomerWithDevices.devices.first())
+            override fun getDevicesByCustomerId(customerId: Long) = kotlinx.coroutines.flow.flowOf(unlockedCustomerWithDevices.devices)
+        }
+        val repo = AppRepository(fakeCustomerDao, fakeDeviceDao)
+        val viewModel = com.example.cad_delta.ui.viewmodel.DeviceFormViewModel(repo)
+
+        viewModel.loadDevice(1L, 10L)
+        val state = viewModel.uiState.first { it.id == 10L }
+        org.junit.Assert.assertFalse(state.isLocked)
+        org.junit.Assert.assertFalse(state.isAlreadyDeliveredOnLoad)
+
+        viewModel.onModelChange("Updated Phone A")
+        viewModel.onBrandChange("New Brand")
+        viewModel.onSerialNumberChange("SN100")
+        viewModel.onPriceChange("250.00")
+
+        var successCallback = false
+        viewModel.saveDevice(1L) { successCallback = true }
+        org.junit.Assert.assertTrue(updateDeviceCalled)
+        org.junit.Assert.assertTrue(successCallback)
+    }
+
     private fun createFakeRepositoryWithDevices(devicesMap: Map<Long, List<Device>>): AppRepository {
         val fakeCustomerDao = object : CustomerDao {
             override suspend fun insertCustomer(customer: Customer) = 1L

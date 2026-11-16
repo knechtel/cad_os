@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Smartphone
@@ -95,7 +96,7 @@ fun AddEditDeviceContent(
     onNavigateBack: () -> Unit
 ) {
     val title = if (deviceId <= 0) "Novo Dispositivo" else "Editar Dispositivo"
-    val isEditable = !uiState.isAlreadyDeliveredOnLoad
+    val isEditable = !uiState.isLocked && !uiState.isAlreadyDeliveredOnLoad
 
     Scaffold(
         topBar = {
@@ -135,10 +136,10 @@ fun AddEditDeviceContent(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                if (uiState.isAlreadyDeliveredOnLoad || uiState.isDelivered) {
+                if (uiState.isLocked || uiState.isAlreadyDeliveredOnLoad || uiState.isDelivered) {
                     Card(
                         colors = CardDefaults.cardColors(
-                            containerColor = if (uiState.isAlreadyDeliveredOnLoad) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer
+                            containerColor = if (uiState.isLocked || uiState.isAlreadyDeliveredOnLoad) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer
                         ),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -147,19 +148,21 @@ fun AddEditDeviceContent(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Default.CheckCircle,
+                                imageVector = if (uiState.isLocked || uiState.isAlreadyDeliveredOnLoad) Icons.Default.Lock else Icons.Default.CheckCircle,
                                 contentDescription = null,
-                                tint = if (uiState.isAlreadyDeliveredOnLoad) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                                tint = if (uiState.isLocked || uiState.isAlreadyDeliveredOnLoad) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer,
                                 modifier = Modifier.padding(end = 8.dp)
                             )
                             Text(
-                                text = if (uiState.isAlreadyDeliveredOnLoad) {
+                                text = if (uiState.isLocked) {
+                                    "Não é possível adicionar ou editar aparelhos para um cliente com aparelho(s) entregue(s)."
+                                } else if (uiState.isAlreadyDeliveredOnLoad) {
                                     "Este aparelho já foi entregue em ${DateUtils.formatDate(uiState.deliveredAt)}. Aparelhos entregues não podem ser editados."
                                 } else {
                                     "Aparelho marcado como Entregue (Saída: ${DateUtils.formatDate(uiState.deliveredAt)})."
                                 },
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = if (uiState.isAlreadyDeliveredOnLoad) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer
+                                color = if (uiState.isLocked || uiState.isAlreadyDeliveredOnLoad) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer
                             )
                         }
                     }
@@ -182,7 +185,7 @@ fun AddEditDeviceContent(
                     },
                     isError = uiState.modelError != null,
                     supportingText = uiState.modelError?.let { { Text(it) } },
-                    enabled = isEditable && !uiState.isDelivered,
+                    enabled = isEditable,
                     singleLine = true
                 )
 
@@ -197,7 +200,7 @@ fun AddEditDeviceContent(
                     },
                     isError = uiState.brandError != null,
                     supportingText = uiState.brandError?.let { { Text(it) } },
-                    enabled = isEditable && !uiState.isDelivered,
+                    enabled = isEditable,
                     singleLine = true
                 )
 
@@ -211,7 +214,7 @@ fun AddEditDeviceContent(
                     },
                     isError = uiState.serialError != null,
                     supportingText = uiState.serialError?.let { { Text(it) } },
-                    enabled = isEditable && !uiState.isDelivered,
+                    enabled = isEditable,
                     singleLine = true
                 )
 
@@ -223,7 +226,7 @@ fun AddEditDeviceContent(
                     leadingIcon = {
                         Icon(imageVector = Icons.Default.Description, contentDescription = null)
                     },
-                    enabled = isEditable && !uiState.isDelivered,
+                    enabled = isEditable,
                     minLines = 3,
                     maxLines = 5
                 )
@@ -240,7 +243,7 @@ fun AddEditDeviceContent(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     isError = uiState.priceError != null,
                     supportingText = uiState.priceError?.let { { Text(it) } },
-                    enabled = isEditable && !uiState.isDelivered,
+                    enabled = isEditable,
                     singleLine = true
                 )
 
