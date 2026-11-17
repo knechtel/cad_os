@@ -3,10 +3,152 @@ package com.example.cad_delta.ui.utils
 import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
+import com.example.cad_delta.Customer
 import com.example.cad_delta.CustomerWithDevices
+import com.example.cad_delta.Device
+import org.json.JSONArray
+import org.json.JSONObject
+import org.json.JSONTokener
 import java.io.File
 
 object ExportUtils {
+
+    fun parseJsonImport(jsonString: String): List<CustomerWithDevices> {
+        val trimmed = jsonString.trim()
+        if (trimmed.isEmpty()) return emptyList()
+
+        val jsonArray: JSONArray = try {
+            if (trimmed.startsWith("[")) {
+                JSONArray(trimmed)
+            } else if (trimmed.startsWith("{")) {
+                val tokener = JSONTokener(trimmed)
+                val firstVal = tokener.nextValue()
+                val nextChar = if (tokener.more()) tokener.nextClean() else '\u0000'
+                if (nextChar == '\u0000' && firstVal is JSONObject) {
+                    if (firstVal.has("results") && !firstVal.isNull("results") && firstVal.optJSONArray("results") != null) {
+                        firstVal.getJSONArray("results")
+                    } else {
+                        JSONArray().apply { put(firstVal) }
+                    }
+                } else {
+                    JSONArray(wrapInArray(trimmed))
+                }
+            } else {
+                JSONArray(wrapInArray(trimmed))
+            }
+        } catch (_: Exception) {
+            try {
+                JSONArray(wrapInArray(trimmed))
+            } catch (e2: Exception) {
+                throw IllegalArgumentException("Formato JSON inválido. O conteúdo deve ser um objeto ou um array.", e2)
+            }
+        }
+
+        val result = mutableListOf<CustomerWithDevices>()
+
+        for (i in 0 until jsonArray.length()) {
+            val custObj = jsonArray.optJSONObject(i) ?: continue
+
+            val name = getStringField(custObj, "nome", "name")
+            val phone = getStringField(custObj, "telefone", "phone")
+            val cpf = getStringField(custObj, "cpf")
+            val address = getStringField(custObj, "endereco", "address")
+
+            val customer = Customer(
+                id = 0,
+                name = name,
+                phone = phone,
+                cpf = cpf,
+                address = address
+            )
+
+            val devicesArray = custObj.optJSONArray("aparelhos") ?: custObj.optJSONArray("devices")
+            val devices = mutableListOf<Device>()
+
+            if (devicesArray != null) {
+                for (j in 0 until devicesArray.length()) {
+                    val devObj = devicesArray.optJSONObject(j) ?: continue
+
+                    val model = getStringField(devObj, "modelo", "model")
+                    val brand = getStringField(devObj, "marca", "brand")
+                    val serialNumber = getStringField(devObj, "numero_serial", "serialNumber")
+                    val description = getStringField(devObj, "descricao", "description")
+                    val price = parsePrice(devObj, "preco", "price")
+                    val createdAt = parseLong(devObj, "createdAt", "created_at")
+                        .takeIf { it != null && it > 0L } ?: System.currentTimeMillis()
+
+                    val deliveredAtVal = parseLong(devObj, "deliveredAt", "delivered_at", "entregue_em")
+                    val (isDelivered, finalDeliveredAt) = if (deliveredAtVal != null && deliveredAtVal > 0L) {
+                        Pair(true, deliveredAtVal)
+                    } else {
+                        val isDeliv = devObj.optBoolean("isDelivered", false)
+                        Pair(isDeliv, if (isDeliv && deliveredAtVal != null && deliveredAtVal > 0L) deliveredAtVal else null)
+                    }
+
+                    val device = Device(
+                        id = 0,
+                        customerId = 0,
+                        model = model,
+                        brand = brand,
+                        serialNumber = serialNumber,
+                        description = description,
+                        price = price,
+                        createdAt = createdAt,
+                        isDelivered = isDelivered,
+                        deliveredAt = finalDeliveredAt
+                    )
+                    devices.add(device)
+                }
+            }
+
+            result.add(CustomerWithDevices(customer, devices))
+        }
+
+        return result
+    }
+
+    private fun getStringField(obj: JSONObject, vararg keys: String): String {
+        for (key in keys) {
+            if (obj.has(key) && !obj.isNull(key)) {
+                val str = obj.optString(key, "")
+                if (str.isNotBlank() && str != "null") {
+                    return str
+                }
+            }
+        }
+        return ""
+    }
+
+    private fun parsePrice(obj: JSONObject, vararg keys: String): Double {
+        for (key in keys) {
+            if (obj.has(key) && !obj.isNull(key)) {
+                val raw = obj.opt(key)
+                if (raw is Number) {
+                    return raw.toDouble()
+                } else if (raw is String) {
+                    val clean = raw.replace("R$", "").replace(" ", "").replace(",", ".")
+                    val parsed = clean.toDoubleOrNull()
+                    if (parsed != null) return parsed
+                }
+            }
+        }
+        return 0.0
+    }
+
+    private fun parseLong(obj: JSONObject, vararg keys: String): Long? {
+        for (key in keys) {
+            if (obj.has(key) && !obj.isNull(key)) {
+                val raw = obj.opt(key)
+                if (raw is Number) {
+                    return raw.toLong()
+                } else if (raw is String) {
+                    val parsed = raw.toLongOrNull()
+                    if (parsed != null) return parsed
+                }
+            }
+        }
+        return null
+    }
 
     fun generateJsonString(data: List<CustomerWithDevices>): String {
         val sb = StringBuilder()
@@ -116,6 +258,14 @@ object ExportUtils {
         )
     }
 
+    private fun wrapInArray(s: String): String {
+        var str = s.trim()
+        if (str.endsWith(",")) {
+            str = str.dropLast(1).trim()
+        }
+        return "[$str]"
+    }
+
     private fun escapeCsv(value: String): String {
         return value.replace("\"", "\"\"")
     }
@@ -131,3 +281,4 @@ object ExportUtils {
             .replace("\t", "\\t")
     }
 }
+

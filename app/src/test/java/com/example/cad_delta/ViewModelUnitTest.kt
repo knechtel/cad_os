@@ -641,6 +641,86 @@ class ViewModelUnitTest {
         org.junit.Assert.assertFalse(updateCalled)
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun testImportDataFromJsonInViewModel() = kotlinx.coroutines.test.runTest {
+        val insertedCustomers = mutableListOf<Customer>()
+        val insertedDevices = mutableListOf<Device>()
+
+        val fakeCustomerDao = object : CustomerDao {
+            private var currentId = 0L
+            override suspend fun insertCustomer(customer: Customer): Long {
+                currentId++
+                insertedCustomers.add(customer.copy(id = currentId))
+                return currentId
+            }
+            override suspend fun updateCustomer(customer: Customer) = 1
+            override suspend fun deleteCustomer(customer: Customer) = 1
+            override fun getAllCustomers() = kotlinx.coroutines.flow.flowOf(emptyList<Customer>())
+            override fun getCustomerById(id: Long) = kotlinx.coroutines.flow.flowOf(null)
+            override fun getCustomersWithDevices() = kotlinx.coroutines.flow.flowOf(emptyList<CustomerWithDevices>())
+            override fun getCustomerWithDevicesById(id: Long) = kotlinx.coroutines.flow.flowOf(null)
+        }
+        val fakeDeviceDao = object : DeviceDao {
+            private var currentId = 0L
+            override suspend fun insertDevice(device: Device): Long {
+                currentId++
+                insertedDevices.add(device.copy(id = currentId))
+                return currentId
+            }
+            override suspend fun updateDevice(device: Device) = 1
+            override suspend fun deleteDevice(device: Device) = 1
+            override fun getAllDevices() = kotlinx.coroutines.flow.flowOf(emptyList<Device>())
+            override fun getDeviceById(id: Long) = kotlinx.coroutines.flow.flowOf(null)
+            override fun getDevicesByCustomerId(customerId: Long) = kotlinx.coroutines.flow.flowOf(emptyList<Device>())
+        }
+
+        val repository = AppRepository(fakeCustomerDao, fakeDeviceDao)
+        val viewModel = com.example.cad_delta.ui.viewmodel.MainViewModel(repository)
+
+        val jsonInput = """
+            [
+              {
+                "id": 1,
+                "nome": "Maiquel Knechtel",
+                "telefone": "51993501980",
+                "cpf": "01637948042",
+                "endereco": "coca Barcelos",
+                "aparelhos": [
+                  {
+                    "id": 1,
+                    "cliente": 1,
+                    "modelo": "model 2",
+                    "marca": "Lenovo",
+                    "numero_serial": "654676",
+                    "descricao": "não liga",
+                    "preco": "188.00",
+                    "createdAt": 1793734167443,
+                    "deliveredAt": 1794101982229
+                  }
+                ]
+              }
+            ]
+        """.trimIndent()
+
+        viewModel.importDataFromJson(jsonInput)
+
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(1, insertedCustomers.size)
+        assertEquals("Maiquel Knechtel", insertedCustomers[0].name)
+        assertEquals(1L, insertedCustomers[0].id)
+
+        assertEquals(1, insertedDevices.size)
+        assertEquals(1L, insertedDevices[0].customerId)
+        assertEquals("model 2", insertedDevices[0].model)
+        assertEquals(188.0, insertedDevices[0].price, 0.001)
+
+        val msg = viewModel.exportMessage.value
+        assertNotNull(msg)
+        org.junit.Assert.assertTrue(msg!!.contains("Importação concluída: 1 cliente(s) e 1 aparelho(s) importados!"))
+    }
+
     private fun createFakeRepositoryWithDevices(devicesMap: Map<Long, List<Device>>): AppRepository {
         val fakeCustomerDao = object : CustomerDao {
             override suspend fun insertCustomer(customer: Customer) = 1L

@@ -44,4 +44,20 @@ class AppRepository(
 
     fun getCustomerWithDevicesById(id: Long): Flow<CustomerWithDevices?> =
         customerDao.getCustomerWithDevicesById(id)
+
+    suspend fun importCustomersWithDevices(items: List<CustomerWithDevices>): Pair<Int, Int> {
+        var importedCustomersCount = 0
+        var importedDevicesCount = 0
+
+        for (item in items) {
+            val newCustomerId = insertCustomer(item.customer.copy(id = 0))
+            importedCustomersCount++
+            for (device in item.devices) {
+                insertDevice(device.copy(id = 0, customerId = newCustomerId))
+                importedDevicesCount++
+            }
+        }
+
+        return Pair(importedCustomersCount, importedDevicesCount)
+    }
 }

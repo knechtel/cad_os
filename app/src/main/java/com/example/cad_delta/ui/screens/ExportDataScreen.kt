@@ -1,5 +1,8 @@
 package com.example.cad_delta.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,6 +21,7 @@ import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Share
@@ -68,6 +72,25 @@ fun ExportDataScreen(
     val exportMessage by viewModel.exportMessage.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    val openDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                val jsonContent = context.contentResolver.openInputStream(it)?.bufferedReader()?.use { reader ->
+                    reader.readText()
+                }
+                if (!jsonContent.isNullOrBlank()) {
+                    viewModel.importDataFromJson(jsonContent)
+                } else {
+                    viewModel.setExportMessage("O arquivo JSON selecionado está vazio.")
+                }
+            } catch (e: Exception) {
+                viewModel.setExportMessage("Erro ao ler o arquivo JSON: ${e.message}")
+            }
+        }
+    }
+
     LaunchedEffect(exportMessage) {
         exportMessage?.let { message ->
             snackbarHostState.showSnackbar(message)
@@ -81,7 +104,8 @@ fun ExportDataScreen(
         onNavigateBack = onNavigateBack,
         onExportJson = { viewModel.exportJson(context) },
         onExportCsv = { viewModel.exportCsv(context) },
-        onExportGeneralPdf = { viewModel.exportGeneralPdf(context) }
+        onExportGeneralPdf = { viewModel.exportGeneralPdf(context) },
+        onImportJson = { openDocumentLauncher.launch(arrayOf("application/json", "*/*")) }
     )
 }
 
@@ -93,7 +117,8 @@ fun ExportDataContent(
     onNavigateBack: () -> Unit,
     onExportJson: () -> Unit,
     onExportCsv: () -> Unit,
-    onExportGeneralPdf: () -> Unit
+    onExportGeneralPdf: () -> Unit,
+    onImportJson: () -> Unit = {}
 ) {
     val totalCustomers = customersWithDevices.size
     val allDevices = customersWithDevices.flatMap { it.devices }
@@ -178,6 +203,30 @@ fun ExportDataContent(
                     modifier = Modifier.weight(1f)
                 )
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Import Section Header
+            Text(
+                text = "Importação de Dados",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = "Restaure ou importe clientes e aparelhos a partir de um arquivo JSON.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // Import Option Card
+            ExportOptionCard(
+                title = "Importar Dados (JSON)",
+                description = "Selecione um arquivo JSON contendo os dados de clientes e aparelhos para importar diretamente para o banco de dados.",
+                icon = Icons.Default.FileDownload,
+                buttonLabel = "Importar Dados (JSON)",
+                buttonIcon = Icons.Default.FileDownload,
+                onClick = onImportJson
+            )
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -287,6 +336,7 @@ fun ExportOptionCard(
     description: String,
     icon: ImageVector,
     buttonLabel: String,
+    buttonIcon: ImageVector = Icons.Default.Share,
     onClick: () -> Unit
 ) {
     OutlinedCard(
@@ -341,7 +391,7 @@ fun ExportOptionCard(
                 )
             ) {
                 Icon(
-                    imageVector = Icons.Default.Share,
+                    imageVector = buttonIcon,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
                 )
@@ -370,7 +420,9 @@ fun ExportDataScreenPreview() {
             onNavigateBack = {},
             onExportJson = {},
             onExportCsv = {},
-            onExportGeneralPdf = {}
+            onExportGeneralPdf = {},
+            onImportJson = {}
         )
     }
 }
+

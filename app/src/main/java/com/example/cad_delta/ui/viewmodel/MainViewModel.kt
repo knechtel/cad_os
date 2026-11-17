@@ -372,7 +372,27 @@ class MainViewModel(
         context.startActivity(chooser)
     }
 
+    fun setExportMessage(message: String) {
+        _exportMessage.value = message
+    }
+
     fun clearExportMessage() {
         _exportMessage.value = null
+    }
+
+    fun importDataFromJson(jsonContent: String) {
+        viewModelScope.launch {
+            try {
+                val parsedData = ExportUtils.parseJsonImport(jsonContent)
+                if (parsedData.isEmpty()) {
+                    _exportMessage.value = "Nenhum dado válido encontrado no JSON."
+                    return@launch
+                }
+                val (cCount, dCount) = repository.importCustomersWithDevices(parsedData)
+                _exportMessage.value = "Importação concluída: $cCount cliente(s) e $dCount aparelho(s) importados!"
+            } catch (e: Exception) {
+                _exportMessage.value = "Erro ao importar JSON: ${e.message}"
+            }
+        }
     }
 }
