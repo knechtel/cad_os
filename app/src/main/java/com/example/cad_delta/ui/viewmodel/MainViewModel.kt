@@ -240,6 +240,9 @@ class MainViewModel(
     }
 
     fun onToggleDeviceDelivered(device: Device, isDelivered: Boolean) {
+        if (device.isDelivered && !isDelivered) {
+            return
+        }
         viewModelScope.launch {
             val updatedDevice = if (isDelivered) {
                 val timestamp = device.deliveredAt ?: System.currentTimeMillis()

@@ -251,7 +251,7 @@ fun AddEditDeviceContent(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable(enabled = isEditable) {
+                        .clickable(enabled = isEditable && !uiState.isDelivered) {
                             onIsDeliveredChange(!uiState.isDelivered)
                         }
                         .padding(vertical = 4.dp)
@@ -259,7 +259,7 @@ fun AddEditDeviceContent(
                     Checkbox(
                         checked = uiState.isDelivered,
                         onCheckedChange = onIsDeliveredChange,
-                        enabled = isEditable
+                        enabled = isEditable && !uiState.isDelivered
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {

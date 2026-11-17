@@ -578,6 +578,69 @@ class ViewModelUnitTest {
         org.junit.Assert.assertTrue(successCallback)
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun testDeviceFormViewModelCheckboxLocking() = kotlinx.coroutines.test.runTest {
+        val repo = createFakeRepository()
+        val viewModel = com.example.cad_delta.ui.viewmodel.DeviceFormViewModel(repo)
+
+        // Initially false
+        org.junit.Assert.assertFalse(viewModel.uiState.value.isDelivered)
+
+        // Mark as delivered
+        viewModel.onIsDeliveredChange(true)
+        org.junit.Assert.assertTrue(viewModel.uiState.value.isDelivered)
+        org.junit.Assert.assertNotNull(viewModel.uiState.value.deliveredAt)
+
+        // Attempting to uncheck should be ignored
+        viewModel.onIsDeliveredChange(false)
+        org.junit.Assert.assertTrue(viewModel.uiState.value.isDelivered)
+        org.junit.Assert.assertNotNull(viewModel.uiState.value.deliveredAt)
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun testMainViewModelToggleDeviceDeliveredUncheckingPrevented() = kotlinx.coroutines.test.runTest {
+        var updateCalled = false
+        val fakeCustomerDao = object : CustomerDao {
+            override suspend fun insertCustomer(customer: Customer) = 1L
+            override suspend fun updateCustomer(customer: Customer) = 1
+            override suspend fun deleteCustomer(customer: Customer) = 1
+            override fun getAllCustomers() = kotlinx.coroutines.flow.flowOf(emptyList<Customer>())
+            override fun getCustomerById(id: Long) = kotlinx.coroutines.flow.flowOf(null)
+            override fun getCustomersWithDevices() = kotlinx.coroutines.flow.flowOf(emptyList<CustomerWithDevices>())
+            override fun getCustomerWithDevicesById(id: Long) = kotlinx.coroutines.flow.flowOf(null)
+        }
+        val fakeDeviceDao = object : DeviceDao {
+            override suspend fun insertDevice(device: Device) = 1L
+            override suspend fun updateDevice(device: Device): Int {
+                updateCalled = true
+                return 1
+            }
+            override suspend fun deleteDevice(device: Device) = 1
+            override fun getAllDevices() = kotlinx.coroutines.flow.flowOf(emptyList<Device>())
+            override fun getDeviceById(id: Long) = kotlinx.coroutines.flow.flowOf(null)
+            override fun getDevicesByCustomerId(customerId: Long) = kotlinx.coroutines.flow.flowOf(emptyList<Device>())
+        }
+        val repo = AppRepository(fakeCustomerDao, fakeDeviceDao)
+        val viewModel = com.example.cad_delta.ui.viewmodel.MainViewModel(repo)
+
+        val deliveredDevice = Device(
+            id = 1L,
+            customerId = 1L,
+            model = "Pixel 7",
+            brand = "Google",
+            serialNumber = "SN123",
+            description = "Test",
+            price = 999.0,
+            isDelivered = true,
+            deliveredAt = 1000L
+        )
+
+        viewModel.onToggleDeviceDelivered(deliveredDevice, false)
+        org.junit.Assert.assertFalse(updateCalled)
+    }
+
     private fun createFakeRepositoryWithDevices(devicesMap: Map<Long, List<Device>>): AppRepository {
         val fakeCustomerDao = object : CustomerDao {
             override suspend fun insertCustomer(customer: Customer) = 1L

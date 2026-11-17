@@ -131,6 +131,9 @@ class DeviceFormViewModel(
     }
 
     fun onIsDeliveredChange(checked: Boolean) {
+        if (_uiState.value.isAlreadyDeliveredOnLoad || (_uiState.value.isDelivered && !checked)) {
+            return
+        }
         val currentDeliveredAt = _uiState.value.deliveredAt
         val newDeliveredAt = if (checked) {
             currentDeliveredAt ?: System.currentTimeMillis()

@@ -556,15 +556,18 @@ fun DeviceItemCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            val isCheckboxEnabled = !device.isDelivered && !isCustomerLocked
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .clickable { onToggleDelivered(!device.isDelivered) }
+                    .clickable(enabled = isCheckboxEnabled) { onToggleDelivered(!device.isDelivered) }
                     .padding(vertical = 2.dp)
             ) {
                 Checkbox(
                     checked = device.isDelivered,
                     onCheckedChange = onToggleDelivered,
+                    enabled = isCheckboxEnabled,
                     modifier = Modifier.size(28.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
